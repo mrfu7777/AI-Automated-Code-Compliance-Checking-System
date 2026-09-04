@@ -253,7 +253,44 @@ The most important safety metric is not overall accuracy. It is the number of kn
 - Initial fire code reviewed
 - Public historical-building drawing and IFC samples collected for pipeline development
 - MVP rule selection and validation workflow planned
-- Application implementation pending
+- M0 architecture baseline completed
+- React and TypeScript application shell completed
+- FastAPI v1 API and Celery worker foundation completed
+- PostgreSQL domain schema and initial Alembic migration completed
+- Redis, MinIO, and Docker Compose development stack defined
+- Backend and frontend quality gates running in GitHub Actions
+
+## Quick Start
+
+The supported development environment uses Docker.
+
+~~~shell
+cp .env.example .env
+docker compose -f infra/docker-compose.yml up --build
+~~~
+
+Replace every placeholder password in .env before using the stack outside an isolated local development machine.
+
+After startup:
+
+- Web application: http://localhost:5173
+- API documentation: http://localhost:8000/docs
+- API health check: http://localhost:8000/api/v1/health
+- MinIO console: http://localhost:9001
+
+Run the complete local quality gate with:
+
+~~~shell
+make check
+~~~
+
+## Engineering Documentation
+
+- [Development guide](docs/development.md)
+- [Architecture baseline](docs/architecture/README.md)
+- [Initial domain model](docs/architecture/domain-model.md)
+- [OpenAPI baseline](docs/api/openapi.json)
+- [M0 release record](docs/releases/m0.md)
 
 ## Data and Copyright Policy
 

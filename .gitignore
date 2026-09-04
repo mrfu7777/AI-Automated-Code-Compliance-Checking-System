@@ -1,0 +1,45 @@
+# Local project material and generated artifacts
+/data/
+/doc/
+/tmp/
+/*.pdf
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# Node
+node_modules/
+.vite/
+coverage/
+apps/web/dist/
+
+# IDE and operating system
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Runtime volumes and logs
+*.log
+.docker/
+postgres-data/
+redis-data/
+minio-data/

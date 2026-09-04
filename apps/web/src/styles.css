@@ -1,0 +1,250 @@
+:root {
+  color: #eef4ed;
+  background: #08110e;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 85% 4%, rgba(74, 123, 97, 0.28), transparent 32rem),
+    #08110e;
+}
+
+a {
+  color: inherit;
+}
+
+.shell {
+  width: min(1180px, calc(100% - 40px));
+  margin: 0 auto;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 82px;
+  border-bottom: 1px solid rgba(217, 231, 221, 0.14);
+}
+
+.brand {
+  display: inline-flex;
+  gap: 12px;
+  align-items: center;
+  color: #f5faf5;
+  font-size: 0.92rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+}
+
+.brand-mark {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid #8cc3a0;
+  color: #b8e2c5;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+}
+
+.connection {
+  display: inline-flex;
+  gap: 9px;
+  align-items: center;
+  color: #aab9af;
+  font-size: 0.76rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.connection-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #d9a441;
+}
+
+.connection--connected .connection-dot {
+  background: #75d697;
+  box-shadow: 0 0 0 4px rgba(117, 214, 151, 0.1);
+}
+
+.connection--unavailable .connection-dot {
+  background: #e77768;
+}
+
+.hero {
+  padding: 118px 0 86px;
+}
+
+.eyebrow {
+  margin: 0 0 18px;
+  color: #88b99a;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+h3,
+p {
+  text-wrap: balance;
+}
+
+h1 {
+  max-width: 850px;
+  margin: 0;
+  color: #f4f7f3;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(3.2rem, 7vw, 6.6rem);
+  font-weight: 400;
+  letter-spacing: -0.055em;
+  line-height: 0.96;
+}
+
+.hero-copy {
+  max-width: 650px;
+  margin: 34px 0 52px;
+  color: #aab9af;
+  font-size: 1.14rem;
+  line-height: 1.75;
+}
+
+.phase {
+  display: flex;
+  max-width: 700px;
+  border-top: 1px solid rgba(217, 231, 221, 0.17);
+  border-bottom: 1px solid rgba(217, 231, 221, 0.17);
+}
+
+.phase > div {
+  display: grid;
+  flex: 1;
+  gap: 8px;
+  padding: 21px 0;
+}
+
+.phase > div + div {
+  padding-left: 32px;
+  border-left: 1px solid rgba(217, 231, 221, 0.17);
+}
+
+.phase-label {
+  color: #708178;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.phase strong {
+  color: #dce8de;
+  font-size: 0.96rem;
+  font-weight: 560;
+}
+
+.foundations {
+  display: grid;
+  grid-template-columns: 0.8fr 1.8fr;
+  gap: 70px;
+  padding: 84px 0 110px;
+  border-top: 1px solid rgba(217, 231, 221, 0.14);
+}
+
+h2 {
+  margin: 0;
+  color: #eaf1e9;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 2.3rem;
+  font-weight: 400;
+  line-height: 1.13;
+}
+
+.foundation-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.foundation-card {
+  min-height: 245px;
+  padding: 25px;
+  border: 1px solid rgba(217, 231, 221, 0.13);
+  background: rgba(16, 31, 24, 0.52);
+}
+
+.card-number {
+  color: #60746a;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+}
+
+.foundation-card h3 {
+  margin: 80px 0 12px;
+  color: #e6eee6;
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.foundation-card p {
+  margin: 0;
+  color: #8fa097;
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
+@media (max-width: 820px) {
+  .hero {
+    padding-top: 82px;
+  }
+
+  .foundations {
+    grid-template-columns: 1fr;
+    gap: 42px;
+  }
+
+  .foundation-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .foundation-card {
+    min-height: 180px;
+  }
+
+  .foundation-card h3 {
+    margin-top: 42px;
+  }
+}
+
+@media (max-width: 560px) {
+  .shell {
+    width: min(100% - 28px, 1180px);
+  }
+
+  .brand > span:last-child {
+    display: none;
+  }
+
+  .phase {
+    display: grid;
+  }
+
+  .phase > div + div {
+    padding-left: 0;
+    border-top: 1px solid rgba(217, 231, 221, 0.17);
+    border-left: 0;
+  }
+}

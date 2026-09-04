@@ -1,0 +1,75 @@
+# Development Guide
+
+## Prerequisites
+
+- Docker Desktop with Docker Compose
+- Git
+- Optional local tools: Python 3.12 and Node.js 22
+
+## Start the stack
+
+1. Copy the example configuration:
+
+   ~~~shell
+   cp .env.example .env
+   ~~~
+
+2. Replace all placeholder passwords in .env.
+
+3. Start the services:
+
+   ~~~shell
+   docker compose -f infra/docker-compose.yml up --build
+   ~~~
+
+4. Open:
+
+   - Web application: http://localhost:5173
+   - API documentation: http://localhost:8000/docs
+   - MinIO console: http://localhost:9001
+
+## Quality checks
+
+~~~shell
+make check
+~~~
+
+The equivalent backend commands run from apps/api:
+
+~~~shell
+pip install -e ".[dev]"
+ruff check .
+mypy app
+pytest
+~~~
+
+The equivalent frontend commands run from apps/web:
+
+~~~shell
+npm ci
+npm run lint
+npm run test
+npm run build
+~~~
+
+## Database migrations
+
+Create schema revisions only through Alembic:
+
+~~~shell
+cd apps/api
+alembic upgrade head
+alembic revision --autogenerate -m "describe the change"
+~~~
+
+Never reset a shared database to handle schema changes. Test every migration from the previously released schema.
+
+## Repository safety
+
+Do not commit:
+
+- customer drawings or reports;
+- licensed regulation source files;
+- generated OCR data or vector indexes;
+- credentials, access tokens, or local environment files;
+- database and object-storage volumes.

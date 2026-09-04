@@ -1,0 +1,147 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "AI Automated Code Compliance Checking System",
+    "description": "Evidence-backed API foundation for automated building code compliance review.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Health",
+        "operationId": "health_api_v1_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/contracts": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Contracts",
+        "operationId": "contracts_api_v1_contracts_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContractSummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CheckStatus": {
+        "type": "string",
+        "enum": [
+          "compliant",
+          "non_compliant",
+          "insufficient_information",
+          "manual_review_required",
+          "not_applicable"
+        ],
+        "title": "CheckStatus"
+      },
+      "ContractSummary": {
+        "properties": {
+          "check_statuses": {
+            "items": {
+              "$ref": "#/components/schemas/CheckStatus"
+            },
+            "type": "array",
+            "title": "Check Statuses"
+          },
+          "evidence_kinds": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceKind"
+            },
+            "type": "array",
+            "title": "Evidence Kinds"
+          },
+          "job_statuses": {
+            "items": {
+              "$ref": "#/components/schemas/JobStatus"
+            },
+            "type": "array",
+            "title": "Job Statuses"
+          }
+        },
+        "type": "object",
+        "required": [
+          "check_statuses",
+          "evidence_kinds",
+          "job_statuses"
+        ],
+        "title": "ContractSummary"
+      },
+      "EvidenceKind": {
+        "type": "string",
+        "enum": [
+          "document_region",
+          "image_region",
+          "spreadsheet_range",
+          "ifc_object",
+          "manual_assertion",
+          "derived_value"
+        ],
+        "title": "EvidenceKind"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "ok",
+            "title": "Status"
+          },
+          "service": {
+            "type": "string",
+            "title": "Service"
+          },
+          "api_version": {
+            "type": "string",
+            "const": "v1",
+            "title": "Api Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "service",
+          "api_version"
+        ],
+        "title": "HealthResponse"
+      },
+      "JobStatus": {
+        "type": "string",
+        "enum": [
+          "queued",
+          "running",
+          "succeeded",
+          "failed",
+          "cancelled"
+        ],
+        "title": "JobStatus"
+      }
+    }
+  }
+}

@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install backend
+        run: pip install -e ".[dev]"
+      - name: Lint
+        run: ruff check .
+      - name: Type check
+        run: mypy app
+      - name: Test
+        run: pytest --cov=app --cov-report=term-missing
+      - name: Validate migrations
+        run: alembic heads
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Install frontend
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Test
+        run: npm run test
+      - name: Build
+        run: npm run build
+
+  compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create local configuration
+        run: cp .env.example .env
+      - name: Validate Docker Compose
+        run: docker compose -f infra/docker-compose.yml config --quiet
+      - name: Start the M0 stack
+        run: docker compose -f infra/docker-compose.yml up --build --detach
+      - name: Wait for the API and web application
+        run: |
+          for attempt in {1..30}; do
+            if curl --fail --silent http://localhost:8000/api/v1/health >/dev/null &&
+               curl --fail --silent http://localhost:5173 >/dev/null; then
+              exit 0
+            fi
+            sleep 5
+          done
+          docker compose -f infra/docker-compose.yml ps
+          exit 1
+      - name: Verify the applied database migration
+        run: docker compose -f infra/docker-compose.yml exec --no-TTY api alembic current
+      - name: Print service logs after a failure
+        if: failure()
+        run: docker compose -f infra/docker-compose.yml logs
+      - name: Stop the M0 stack
+        if: always()
+        run: docker compose -f infra/docker-compose.yml down --volumes
