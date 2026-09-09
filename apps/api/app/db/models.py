@@ -68,6 +68,10 @@ class ProjectFile(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     logical_name: Mapped[str] = mapped_column(String(512), nullable=False)
     purpose: Mapped[str] = mapped_column(String(64), nullable=False, default="project_document")
 
+    __table_args__ = (
+        UniqueConstraint("project_id", "logical_name", name="uq_project_files_project_name"),
+    )
+
 
 class FileVersion(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "file_versions"
@@ -278,6 +282,9 @@ class Job(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ForeignKey("organizations.id"), nullable=False, index=True
     )
     project_id: Mapped[UUID | None] = mapped_column(ForeignKey("projects.id"), index=True)
+    file_version_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("file_versions.id"), index=True
+    )
     job_type: Mapped[str] = mapped_column(String(128), nullable=False)
     status: Mapped[str] = mapped_column(String(64), nullable=False, default="queued")
     progress: Mapped[float] = mapped_column(Float, nullable=False, default=0)
@@ -285,6 +292,8 @@ class Job(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     output_data: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     error_data: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    max_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
+    request_id: Mapped[str | None] = mapped_column(String(128), index=True)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 

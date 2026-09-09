@@ -22,10 +22,14 @@ class Settings(BaseSettings):
     celery_broker_url: str = "redis://localhost:6379/1"
     celery_result_backend: str = "redis://localhost:6379/2"
     minio_endpoint: str = "localhost:9000"
+    minio_public_endpoint: str = "localhost:9000"
     minio_access_key: str = "code-compliance"
     minio_secret_key: str = "change-me-minio-password"
     minio_bucket: str = "code-compliance"
     minio_secure: bool = False
+    max_upload_size_bytes: int = 157_286_400
+    default_organization_id: str = "00000000-0000-0000-0000-000000000001"
+    default_user_id: str = "00000000-0000-0000-0000-000000000002"
 
 
 @lru_cache

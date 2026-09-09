@@ -61,7 +61,7 @@ jobs:
         run: cp .env.example .env
       - name: Validate Docker Compose
         run: docker compose -f infra/docker-compose.yml config --quiet
-      - name: Start the M0 stack
+      - name: Start the M1 stack
         run: docker compose -f infra/docker-compose.yml up --build --detach
       - name: Wait for the API and web application
         run: |
@@ -79,6 +79,6 @@ jobs:
       - name: Print service logs after a failure
         if: failure()
         run: docker compose -f infra/docker-compose.yml logs
-      - name: Stop the M0 stack
+      - name: Stop the M1 stack
         if: always()
         run: docker compose -f infra/docker-compose.yml down --volumes

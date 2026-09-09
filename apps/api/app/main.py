@@ -11,7 +11,7 @@ def create_application() -> FastAPI:
     settings = get_settings()
     application = FastAPI(
         title=settings.app_name,
-        version="0.1.0",
+        version="0.2.0",
         description=(
             "Evidence-backed API foundation for automated building code compliance review."
         ),

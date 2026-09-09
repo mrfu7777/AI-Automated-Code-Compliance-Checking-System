@@ -259,6 +259,12 @@ The most important safety metric is not overall accuracy. It is the number of kn
 - PostgreSQL domain schema and initial Alembic migration completed
 - Redis, MinIO, and Docker Compose development stack defined
 - Backend and frontend quality gates running in GitHub Actions
+- M1 project creation and tenant-scoped project access completed
+- Streaming PDF upload with a configurable 150 MB limit completed
+- Immutable file versions stored in MinIO with SHA-256 metadata in PostgreSQL
+- Celery metadata jobs, persistent progress, visible failures, and manual retry completed
+- Request-linked audit events and 15-minute presigned downloads completed
+- React M1 workspace for projects, versions, and live job status completed
 
 ## Quick Start
 
@@ -284,6 +290,37 @@ Run the complete local quality gate with:
 make check
 ~~~
 
+## M1 Walking Skeleton
+
+The local development environment uses a deterministic architect identity so the vertical
+workflow can be exercised before production authentication is introduced. The API still scopes
+every project, file, and job query to that actor's organization. Do not treat this development
+identity as production authentication.
+
+The first vertical path is:
+
+1. Create a project in the web application.
+2. Select the project and upload a PDF of up to 150 MB.
+3. The API streams and hashes the file, stores it in MinIO, and records an immutable file version.
+4. A persistent job is published to Celery.
+5. The worker verifies the stored object and records success or a retryable failure.
+6. The browser polls the job API and displays the persisted status.
+
+Uploading another PDF under the same logical document name creates the next version. It never
+overwrites the previous object or database record.
+
+M1 endpoints are documented interactively at http://localhost:8000/docs and include:
+
+- POST /api/v1/projects
+- GET /api/v1/projects
+- GET /api/v1/projects/{project_id}
+- GET /api/v1/projects/{project_id}/files
+- POST /api/v1/projects/{project_id}/files
+- GET /api/v1/projects/{project_id}/jobs
+- GET /api/v1/jobs/{job_id}
+- POST /api/v1/jobs/{job_id}/retry
+- GET /api/v1/file-versions/{file_version_id}/download
+
 ## Engineering Documentation
 
 - [Development guide](docs/development.md)
@@ -291,6 +328,7 @@ make check
 - [Initial domain model](docs/architecture/domain-model.md)
 - [OpenAPI baseline](docs/api/openapi.json)
 - [M0 release record](docs/releases/m0.md)
+- [M1 release record](docs/releases/m1.md)
 
 ## Data and Copyright Policy
 

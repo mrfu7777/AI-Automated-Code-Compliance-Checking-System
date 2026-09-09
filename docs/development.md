@@ -28,6 +28,14 @@
    - API documentation: http://localhost:8000/docs
    - MinIO console: http://localhost:9001
 
+The M1 upload limit defaults to 150 MB. Change MAX_UPLOAD_SIZE_BYTES only through local or
+deployment configuration. MINIO_ENDPOINT is the container-to-container endpoint, while
+MINIO_PUBLIC_ENDPOINT is used to generate browser-accessible download links.
+
+The development stack creates a deterministic local organization and architect on first use.
+Supplying X-User-ID selects an existing active user and is useful for isolation testing, but it
+is not a production authentication mechanism.
+
 ## Quality checks
 
 ~~~shell
@@ -63,6 +71,9 @@ alembic revision --autogenerate -m "describe the change"
 ~~~
 
 Never reset a shared database to handle schema changes. Test every migration from the previously released schema.
+
+The M1 migration is additive: it links jobs to file versions, adds request tracing and retry
+limits, and makes a logical file name unique within a project.
 
 ## Repository safety
 

@@ -32,11 +32,20 @@ The following contracts are established in M0 and extended compatibly in later m
 - asynchronous job states;
 - immutable source and result versions.
 
+## M1 vertical path
+
+M1 extends the modular monolith without changing the M0 boundaries. FastAPI streams an uploaded
+PDF through a bounded temporary spool, calculates SHA-256, stores the object in MinIO, and commits
+FileVersion, Job, and AuditEvent records in PostgreSQL. Only stable identifiers cross the Celery
+boundary. The worker reloads the records, verifies object metadata, and persists its terminal
+state. React reads the same project, file-version, and job contracts through the v1 API.
+
 ## Architecture decision records
 
 - [ADR-0001: Modular monolith with asynchronous workers](adr/0001-modular-monolith.md)
 - [ADR-0002: Evidence-first domain model](adr/0002-evidence-first-domain.md)
 - [ADR-0003: Deterministic rule engine boundary](adr/0003-deterministic-rule-engine.md)
+- [ADR-0004: Immutable uploads and persistent asynchronous jobs](adr/0004-immutable-uploads.md)
 
 ## Domain model
 

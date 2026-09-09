@@ -89,6 +89,19 @@ a {
   padding: 118px 0 86px;
 }
 
+.hero--compact {
+  padding: 76px 0 56px;
+}
+
+.hero--compact h1 {
+  max-width: 980px;
+  font-size: clamp(2.8rem, 6vw, 5.8rem);
+}
+
+.hero--compact .hero-copy {
+  margin-bottom: 0;
+}
+
 .eyebrow {
   margin: 0 0 18px;
   color: #88b99a;
@@ -206,6 +219,230 @@ h2 {
   line-height: 1.6;
 }
 
+button,
+input {
+  font: inherit;
+}
+
+button {
+  border: 1px solid #8cc3a0;
+  background: #a7d5b5;
+  color: #0b1811;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.alert {
+  margin-bottom: 20px;
+  padding: 14px 16px;
+  border: 1px solid rgba(231, 119, 104, 0.6);
+  background: rgba(116, 41, 34, 0.25);
+  color: #ffd5cf;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.75fr) minmax(360px, 1.35fr) minmax(250px, 0.9fr);
+  gap: 16px;
+  padding-bottom: 90px;
+}
+
+.panel {
+  min-height: 540px;
+  padding: 24px;
+  border: 1px solid rgba(217, 231, 221, 0.14);
+  background: rgba(13, 27, 21, 0.68);
+}
+
+.panel-heading {
+  min-height: 116px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(217, 231, 221, 0.12);
+}
+
+.panel-heading h2 {
+  font-size: 1.75rem;
+}
+
+.stack {
+  display: grid;
+  gap: 14px;
+  padding: 22px 0;
+}
+
+.stack label {
+  display: grid;
+  gap: 7px;
+  color: #8fa097;
+  font-size: 0.78rem;
+  letter-spacing: 0.03em;
+}
+
+.stack input {
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 11px;
+  border: 1px solid rgba(217, 231, 221, 0.18);
+  outline: none;
+  background: #0a1511;
+  color: #eef4ed;
+}
+
+.stack input:focus {
+  border-color: #8cc3a0;
+}
+
+.stack > button,
+.job-card > button {
+  min-height: 42px;
+  padding: 10px 14px;
+}
+
+.project-list,
+.file-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.project-item {
+  display: grid;
+  gap: 5px;
+  padding: 15px;
+  border-color: rgba(217, 231, 221, 0.12);
+  background: rgba(7, 17, 13, 0.55);
+  color: #dce8de;
+  text-align: left;
+}
+
+.project-item span,
+.file-card span {
+  color: #82938a;
+  font-size: 0.76rem;
+  font-weight: 400;
+}
+
+.project-item.is-selected {
+  border-color: #8cc3a0;
+  background: rgba(88, 137, 104, 0.17);
+}
+
+.file-picker input {
+  padding: 8px;
+}
+
+.file-card {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid rgba(217, 231, 221, 0.12);
+}
+
+.file-card > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.version-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border: 0;
+  border-top: 1px solid rgba(217, 231, 221, 0.09);
+  background: transparent;
+  color: #cfe0d2;
+  text-align: left;
+}
+
+.empty {
+  color: #718279;
+  font-size: 0.86rem;
+  line-height: 1.6;
+}
+
+.job-card {
+  padding-top: 24px;
+}
+
+.job-state {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #8fa097;
+  font-size: 0.82rem;
+}
+
+.status {
+  padding: 5px 8px;
+  border: 1px solid rgba(217, 231, 221, 0.18);
+  color: #d7e5d8;
+  font-size: 0.7rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.status--succeeded {
+  border-color: #75d697;
+  color: #9ce7b5;
+}
+
+.status--failed {
+  border-color: #e77768;
+  color: #ffaea3;
+}
+
+.progress {
+  height: 4px;
+  margin: 18px 0 25px;
+  overflow: hidden;
+  background: rgba(217, 231, 221, 0.1);
+}
+
+.progress span {
+  display: block;
+  height: 100%;
+  background: #75d697;
+  transition: width 240ms ease;
+}
+
+.job-card dl {
+  display: grid;
+  gap: 12px;
+  margin: 0 0 20px;
+}
+
+.job-card dl div {
+  display: grid;
+  grid-template-columns: 70px 1fr;
+  gap: 10px;
+}
+
+.job-card dt {
+  color: #718279;
+  font-size: 0.75rem;
+}
+
+.job-card dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: #c6d5c8;
+  font-size: 0.75rem;
+}
+
+.job-error {
+  color: #ffaea3;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
 @media (max-width: 820px) {
   .hero {
     padding-top: 82px;
@@ -226,6 +463,14 @@ h2 {
 
   .foundation-card h3 {
     margin-top: 42px;
+  }
+
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .panel {
+    min-height: auto;
   }
 }
 

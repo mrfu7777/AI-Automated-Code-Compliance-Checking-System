@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "code-compliance-api"
-version = "0.1.0"
+version = "0.2.0"
 description = "API and worker foundation for evidence-backed building code compliance review"
 requires-python = ">=3.11"
 dependencies = [
@@ -12,8 +12,10 @@ dependencies = [
   "asyncpg==0.31.0",
   "celery==5.6.3",
   "fastapi==0.141.1",
+  "minio==7.2.20",
   "pydantic==2.13.5",
   "pydantic-settings==2.15.0",
+  "python-multipart==0.0.22",
   "redis==8.1.0",
   "sqlalchemy==2.0.52",
   "uvicorn[standard]==0.52.4",
@@ -60,4 +62,8 @@ warn_unused_configs = true
 
 [[tool.mypy.overrides]]
 module = ["celery.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["minio.*"]
 ignore_missing_imports = true
