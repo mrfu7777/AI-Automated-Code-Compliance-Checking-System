@@ -8,7 +8,7 @@ celery_app = Celery(
     "code_compliance",
     broker=settings.celery_broker_url,
     backend=settings.celery_result_backend,
-    include=["app.tasks.file_processing"],
+    include=["app.tasks.file_processing", "app.tasks.regulation_processing"],
 )
 celery_app.conf.update(
     accept_content=["json"],

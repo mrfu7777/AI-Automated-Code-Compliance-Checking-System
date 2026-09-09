@@ -28,7 +28,7 @@
    - API documentation: http://localhost:8000/docs
    - MinIO console: http://localhost:9001
 
-The M1 upload limit defaults to 150 MB. Change MAX_UPLOAD_SIZE_BYTES only through local or
+The upload limit defaults to 150 MB. Change MAX_UPLOAD_SIZE_BYTES only through local or
 deployment configuration. MINIO_ENDPOINT is the container-to-container endpoint, while
 MINIO_PUBLIC_ENDPOINT is used to generate browser-accessible download links.
 
@@ -74,6 +74,11 @@ Never reset a shared database to handle schema changes. Test every migration fro
 
 The M1 migration is additive: it links jobs to file versions, adds request tracing and retry
 limits, and makes a logical file name unique within a project.
+
+The M2 migration adds tenant-scoped standards, positioned document pages, clause review fields,
+and immutable correction revisions. M2 uses PDFium and RapidOCR locally; no regulation page is
+sent to a hosted OCR service. The first OCR task may take longer while the inference runtime is
+initialized. Published standard versions are immutable, so test reprocessing with a draft version.
 
 ## Repository safety
 

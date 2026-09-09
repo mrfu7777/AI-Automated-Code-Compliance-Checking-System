@@ -97,9 +97,16 @@ class FileVersion(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 class Standard(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "standards"
 
-    code: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
+    organization_id: Mapped[UUID] = mapped_column(
+        ForeignKey("organizations.id"), nullable=False, index=True
+    )
+    code: Mapped[str] = mapped_column(String(128), nullable=False)
     title: Mapped[str] = mapped_column(String(512), nullable=False)
     jurisdiction: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("organization_id", "code", name="uq_standards_organization_code"),
+    )
 
 
 class StandardVersion(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -131,11 +138,16 @@ class Clause(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ForeignKey("standard_versions.id"), nullable=False, index=True
     )
     parent_id: Mapped[UUID | None] = mapped_column(ForeignKey("clauses.id"))
+    source_page_id: Mapped[UUID | None] = mapped_column(ForeignKey("document_pages.id"), index=True)
     clause_number: Mapped[str] = mapped_column(String(128), nullable=False)
+    level: Mapped[str] = mapped_column(String(32), nullable=False, default="article")
     heading: Mapped[str | None] = mapped_column(String(512))
     original_text: Mapped[str] = mapped_column(Text, nullable=False)
     page_number: Mapped[int] = mapped_column(Integer, nullable=False)
     bounding_box: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    confidence: Mapped[float | None] = mapped_column(Float)
+    reviewed_by_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"))
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     order_index: Mapped[int] = mapped_column(Integer, nullable=False)
     lifecycle_status: Mapped[str] = mapped_column(String(64), nullable=False, default="draft")
 
@@ -145,6 +157,44 @@ class Clause(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "clause_number",
             name="uq_clauses_standard_version_number",
         ),
+    )
+
+
+class DocumentPage(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "document_pages"
+
+    file_version_id: Mapped[UUID] = mapped_column(
+        ForeignKey("file_versions.id"), nullable=False, index=True
+    )
+    page_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    width: Mapped[float] = mapped_column(Float, nullable=False)
+    height: Mapped[float] = mapped_column(Float, nullable=False)
+    extraction_method: Mapped[str] = mapped_column(String(32), nullable=False)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    char_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    average_confidence: Mapped[float | None] = mapped_column(Float)
+    image_object_key: Mapped[str | None] = mapped_column(String(1024))
+
+    __table_args__ = (
+        UniqueConstraint("file_version_id", "page_number", name="uq_document_pages_file_page"),
+    )
+
+
+class ClauseRevision(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "clause_revisions"
+
+    clause_id: Mapped[UUID] = mapped_column(ForeignKey("clauses.id"), nullable=False, index=True)
+    revision_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    clause_number: Mapped[str] = mapped_column(String(128), nullable=False)
+    heading: Mapped[str | None] = mapped_column(String(512))
+    original_text: Mapped[str] = mapped_column(Text, nullable=False)
+    parent_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True))
+    bounding_box: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    changed_by_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    change_reason: Mapped[str] = mapped_column(String(512), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("clause_id", "revision_number", name="uq_clause_revisions_number"),
     )
 
 
@@ -282,9 +332,7 @@ class Job(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ForeignKey("organizations.id"), nullable=False, index=True
     )
     project_id: Mapped[UUID | None] = mapped_column(ForeignKey("projects.id"), index=True)
-    file_version_id: Mapped[UUID | None] = mapped_column(
-        ForeignKey("file_versions.id"), index=True
-    )
+    file_version_id: Mapped[UUID | None] = mapped_column(ForeignKey("file_versions.id"), index=True)
     job_type: Mapped[str] = mapped_column(String(128), nullable=False)
     status: Mapped[str] = mapped_column(String(64), nullable=False, default="queued")
     progress: Mapped[float] = mapped_column(Float, nullable=False, default=0)

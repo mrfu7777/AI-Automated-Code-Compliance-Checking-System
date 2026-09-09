@@ -265,6 +265,10 @@ The most important safety metric is not overall accuracy. It is the number of kn
 - Celery metadata jobs, persistent progress, visible failures, and manual retry completed
 - Request-linked audit events and 15-minute presigned downloads completed
 - React M1 workspace for projects, versions, and live job status completed
+- M2 local text-layer extraction and Chinese OCR fallback completed
+- Positioned page records, clause hierarchy, search, and source-page links completed
+- Human correction, revision history, split/merge, review, and immutable publishing completed
+- Generic job dispatch and lifecycle shared by M1 and M2 processors completed
 
 ## Quick Start
 
@@ -321,6 +325,35 @@ M1 endpoints are documented interactively at http://localhost:8000/docs and incl
 - POST /api/v1/jobs/{job_id}/retry
 - GET /api/v1/file-versions/{file_version_id}/download
 
+## M2 Regulation Digitization
+
+M2 extends the M1 path instead of creating a parallel upload or job system. Upload a PDF with
+the `regulation_source` purpose, select its existing immutable `FileVersion`, and create a
+`StandardVersion`. The same durable job API then routes a `regulation.parse` job to the M2
+processor.
+
+The processor uses PDFium for permissively licensed local PDF rendering and text extraction.
+Pages without a reliable text layer fall back to local RapidOCR. It removes repeated page
+margins, recognizes chapter, section, and numbered-article headings, and stores each candidate
+with its source page, PDF coordinate box, confidence, and evidence record.
+
+Architects can search and correct clauses, change hierarchy, split or merge candidates, and
+publish only after all active clauses are reviewed. Every correction stores the previous value,
+reviewer, timestamp, and reason. Published versions cannot be edited or reparsed; a new edition
+must be created from a new immutable source version.
+
+M2 adds these API groups:
+
+- POST /api/v1/regulations/ingestions
+- GET /api/v1/regulations
+- GET /api/v1/regulations/versions/{version_id}/pages
+- GET /api/v1/regulations/versions/{version_id}/clauses
+- PATCH /api/v1/regulations/clauses/{clause_id}
+- POST /api/v1/regulations/clauses/{clause_id}/split
+- POST /api/v1/regulations/clauses/merge
+- POST /api/v1/regulations/versions/{version_id}/publish
+- POST /api/v1/regulations/versions/{version_id}/reparse
+
 ## Engineering Documentation
 
 - [Development guide](docs/development.md)
@@ -329,6 +362,7 @@ M1 endpoints are documented interactively at http://localhost:8000/docs and incl
 - [OpenAPI baseline](docs/api/openapi.json)
 - [M0 release record](docs/releases/m0.md)
 - [M1 release record](docs/releases/m1.md)
+- [M2 release record](docs/releases/m2.md)
 
 ## Data and Copyright Policy
 

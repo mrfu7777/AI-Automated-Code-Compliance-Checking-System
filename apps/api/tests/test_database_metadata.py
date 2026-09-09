@@ -12,6 +12,8 @@ def test_core_domain_tables_are_registered() -> None:
         "standards",
         "standard_versions",
         "clauses",
+        "clause_revisions",
+        "document_pages",
         "rule_packs",
         "rules",
         "project_facts",

@@ -2,16 +2,23 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 
 import {
   createProject,
+  Clause,
   getHealth,
   getJob,
   Job,
+  ingestRegulation,
+  listClauses,
   listProjectFiles,
   listProjectJobs,
   listProjects,
+  listRegulations,
   openDownload,
   Project,
   ProjectFile,
+  publishVersion,
   retryJob,
+  Standard,
+  updateClause,
   uploadProjectFile,
 } from "./api/client";
 
@@ -32,6 +39,13 @@ function App() {
   const [jurisdiction, setJurisdiction] = useState("");
   const [logicalName, setLogicalName] = useState("");
   const [upload, setUpload] = useState<File | null>(null);
+  const [purpose, setPurpose] = useState("project_document");
+  const [regulations, setRegulations] = useState<Standard[]>([]);
+  const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
+  const [clauses, setClauses] = useState<Clause[]>([]);
+  const [query, setQuery] = useState("");
+  const [editingClause, setEditingClause] = useState<Clause | null>(null);
+  const [editedText, setEditedText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,10 +61,12 @@ function App() {
         if (requestError instanceof DOMException && requestError.name === "AbortError") return;
         setConnection("unavailable");
       });
-    listProjects(controller.signal)
-      .then((items) => {
-        setProjects(items);
+    Promise.all([listProjects(controller.signal), listRegulations(controller.signal)])
+      .then(([items, standards]) => {
+        setProjects((current) => current.length === 0 ? items : current);
+        setRegulations(standards);
         if (items.length > 0) setSelectedProjectId(items[0].id);
+        if (standards[0]?.versions[0]) setSelectedVersionId(standards[0].versions[0].id);
       })
       .catch((requestError: unknown) => {
         if (!(requestError instanceof DOMException && requestError.name === "AbortError")) {
@@ -59,6 +75,15 @@ function App() {
       });
     return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    if (!selectedVersionId) {
+      return;
+    }
+    void listClauses(selectedVersionId, query).then(setClauses).catch((requestError: unknown) => {
+      setError(requestError instanceof Error ? requestError.message : "Unable to load clauses");
+    });
+  }, [query, selectedVersionId]);
 
   useEffect(() => {
     if (!selectedProjectId) return;
@@ -88,6 +113,14 @@ function App() {
           setJob(updated);
           if (updated.status === "succeeded" && updated.project_id) {
             void refreshFiles(updated.project_id);
+          }
+          if (updated.status === "succeeded" && updated.job_type === "regulation.parse") {
+            const versionId = updated.output_data?.standard_version_id;
+            if (typeof versionId === "string") {
+              setSelectedVersionId(versionId);
+              void listClauses(versionId).then(setClauses);
+              void listRegulations().then(setRegulations);
+            }
           }
         })
         .catch((requestError: unknown) => {
@@ -126,7 +159,7 @@ function App() {
     setBusy(true);
     setError(null);
     try {
-      const result = await uploadProjectFile(selectedProjectId, upload, logicalName);
+      const result = await uploadProjectFile(selectedProjectId, upload, logicalName, purpose);
       setJob(result.job);
       setUpload(null);
       setLogicalName("");
@@ -135,6 +168,55 @@ function App() {
       setError(requestError instanceof Error ? requestError.message : "Unable to upload file");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function handleIngest(versionId: string) {
+    const code = window.prompt("Standard code", "GB 55037-2022");
+    if (!code) return;
+    const edition = window.prompt("Edition", "2022");
+    if (!edition) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await ingestRegulation(
+        versionId,
+        code,
+        code === "GB 55037-2022" ? "General Code for Fire Protection of Buildings" : code,
+        edition,
+        selectedProject?.jurisdiction ?? "China",
+      );
+      setJob(result.job);
+      setSelectedVersionId(result.version.id);
+      setRegulations(await listRegulations());
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Unable to ingest regulation");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleClauseSave() {
+    if (!editingClause) return;
+    setBusy(true);
+    try {
+      const updated = await updateClause(editingClause.id, editedText, "Architect review");
+      setClauses((items) => items.map((item) => item.id === updated.id ? updated : item));
+      setEditingClause(null);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Unable to save clause");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handlePublish() {
+    if (!selectedVersionId) return;
+    try {
+      await publishVersion(selectedVersionId);
+      setRegulations(await listRegulations());
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Unable to publish version");
     }
   }
 
@@ -167,11 +249,11 @@ function App() {
       </nav>
 
       <section className="hero hero--compact">
-        <p className="eyebrow">M1 · Walking skeleton</p>
-        <h1>Files enter once. Every version stays traceable.</h1>
+        <p className="eyebrow">M2 · Regulation digitization</p>
+        <h1>From source PDF to citable clauses.</h1>
         <p className="hero-copy">
-          Create a renovation project, upload a PDF, and follow the real background job from
-          storage to completion.
+          Reuse an immutable source file, extract text or OCR, review every clause, and publish a
+          traceable regulation version for later compliance checks.
         </p>
       </section>
 
@@ -234,6 +316,13 @@ function App() {
                 type="file"
               />
             </label>
+            <label>
+              Document purpose
+              <select value={purpose} onChange={(event) => setPurpose(event.target.value)}>
+                <option value="project_document">Project document</option>
+                <option value="regulation_source">Regulation source</option>
+              </select>
+            </label>
             <button disabled={busy || !selectedProject || !upload} type="submit">Upload version</button>
           </form>
           <div className="file-list">
@@ -244,15 +333,24 @@ function App() {
                   <span>{item.versions.length} version{item.versions.length === 1 ? "" : "s"}</span>
                 </div>
                 {item.versions.map((version) => (
-                  <button
-                    className="version-row"
-                    key={version.id}
-                    onClick={() => void openDownload(version.id)}
-                    type="button"
-                  >
-                    <span>v{version.version_number} · {version.original_filename}</span>
-                    <span>{readableBytes(version.size_bytes)}</span>
-                  </button>
+                  <div className="version-actions" key={version.id}>
+                    <button
+                      className="version-row"
+                      onClick={() => void openDownload(version.id)}
+                      type="button"
+                    >
+                      <span>v{version.version_number} · {version.original_filename}</span>
+                      <span>{readableBytes(version.size_bytes)}</span>
+                    </button>
+                    {item.purpose === "regulation_source" && (
+                      <button
+                        className="secondary-button"
+                        disabled={busy}
+                        onClick={() => void handleIngest(version.id)}
+                        type="button"
+                      >Digitize this version</button>
+                    )}
+                  </div>
                 ))}
               </article>
             ))}
@@ -285,6 +383,73 @@ function App() {
             </article>
           )}
         </aside>
+      </section>
+
+      <section className="regulation-workspace" aria-label="M2 regulation workspace">
+        <div className="panel regulation-library">
+          <div className="panel-heading">
+            <p className="eyebrow">04 · Regulation versions</p>
+            <h2>Controlled library</h2>
+          </div>
+          {regulations.map((standard) => (
+            <article className="file-card" key={standard.id}>
+              <strong>{standard.code}</strong>
+              <span>{standard.title}</span>
+              {standard.versions.map((version) => (
+                <button
+                  className="version-row"
+                  key={version.id}
+                  onClick={() => setSelectedVersionId(version.id)}
+                  type="button"
+                >
+                  <span>{version.edition}</span><span>{version.lifecycle_status}</span>
+                </button>
+              ))}
+            </article>
+          ))}
+          {regulations.length === 0 && <p className="empty">No regulation version yet.</p>}
+        </div>
+
+        <div className="panel clause-review">
+          <div className="panel-heading">
+            <p className="eyebrow">05 · Human review gate</p>
+            <h2>Search and correct clauses</h2>
+          </div>
+          <div className="clause-toolbar">
+            <input
+              aria-label="Search clauses"
+              placeholder="Clause number or text"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+            <button disabled={!selectedVersionId} onClick={() => void handlePublish()} type="button">
+              Publish reviewed version
+            </button>
+          </div>
+          <div className="clause-list">
+            {clauses.map((clause) => (
+              <button
+                className="clause-row"
+                key={clause.id}
+                onClick={() => { setEditingClause(clause); setEditedText(clause.original_text); }}
+                type="button"
+              >
+                <strong>{clause.clause_number}</strong>
+                <span>p.{clause.page_number} · {clause.lifecycle_status}</span>
+                <p>{clause.original_text}</p>
+              </button>
+            ))}
+          </div>
+          {editingClause && (
+            <div className="clause-editor">
+              <strong>Review {editingClause.clause_number}</strong>
+              <textarea value={editedText} onChange={(event) => setEditedText(event.target.value)} />
+              <button disabled={busy || !editedText.trim()} onClick={() => void handleClauseSave()} type="button">
+                Save and mark reviewed
+              </button>
+            </div>
+          )}
+        </div>
       </section>
     </main>
   );

@@ -39,16 +39,23 @@ class FakeStorage(ObjectStorage):
         assert object_key in self.objects
         return f"https://storage.invalid/{object_key}?filename={filename}"
 
+    def download_to_file(self, object_key: str, destination: Path) -> None:
+        destination.write_bytes(self.objects[object_key])
+
 
 class FakeDispatcher:
     def __init__(self) -> None:
-        self.job_ids: list[UUID] = []
+        self.dispatched: list[tuple[UUID, str]] = []
         self.fail = False
 
-    def dispatch_file_processing(self, job_id: UUID) -> None:
+    def dispatch(self, job_id: UUID, job_type: str) -> None:
         if self.fail:
             raise RuntimeError("broker unavailable")
-        self.job_ids.append(job_id)
+        self.dispatched.append((job_id, job_type))
+
+    @property
+    def job_ids(self) -> list[UUID]:
+        return [job_id for job_id, _job_type in self.dispatched]
 
 
 @pytest.fixture

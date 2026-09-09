@@ -6,12 +6,14 @@ from pydantic import BaseModel
 from app.api.v1.jobs import router as jobs_router
 from app.api.v1.projects import file_versions_router
 from app.api.v1.projects import router as projects_router
+from app.api.v1.regulations import router as regulations_router
 from app.domain.enums import CheckStatus, EvidenceKind, JobStatus
 
 router = APIRouter()
 router.include_router(projects_router)
 router.include_router(file_versions_router)
 router.include_router(jobs_router)
+router.include_router(regulations_router)
 
 
 class HealthResponse(BaseModel):

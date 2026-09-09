@@ -220,7 +220,9 @@ h2 {
 }
 
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
 }
 
@@ -283,7 +285,8 @@ button:disabled {
   letter-spacing: 0.03em;
 }
 
-.stack input {
+.stack input,
+.stack select {
   width: 100%;
   min-height: 42px;
   padding: 9px 11px;
@@ -291,6 +294,14 @@ button:disabled {
   outline: none;
   background: #0a1511;
   color: #eef4ed;
+}
+
+.secondary-button {
+  padding: 8px 10px;
+  border-color: rgba(140, 195, 160, 0.45);
+  background: transparent;
+  color: #b8e2c5;
+  font-size: 0.75rem;
 }
 
 .stack input:focus {
@@ -443,6 +454,83 @@ button:disabled {
   line-height: 1.5;
 }
 
+.regulation-workspace {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.8fr) minmax(480px, 1.7fr);
+  gap: 16px;
+  padding-bottom: 90px;
+}
+
+.regulation-library,
+.clause-review {
+  min-height: 480px;
+}
+
+.clause-toolbar {
+  display: flex;
+  gap: 10px;
+  padding: 22px 0;
+}
+
+.clause-toolbar input,
+.clause-editor textarea {
+  flex: 1;
+  min-height: 42px;
+  padding: 10px;
+  border: 1px solid rgba(217, 231, 221, 0.18);
+  background: #0a1511;
+  color: #eef4ed;
+}
+
+.clause-toolbar button,
+.clause-editor button {
+  padding: 10px 14px;
+}
+
+.clause-list {
+  display: grid;
+  gap: 8px;
+  max-height: 430px;
+  overflow: auto;
+}
+
+.clause-row {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 5px 12px;
+  padding: 14px;
+  border-color: rgba(217, 231, 221, 0.12);
+  background: rgba(7, 17, 13, 0.55);
+  color: #dce8de;
+  text-align: left;
+}
+
+.clause-row span {
+  color: #88b99a;
+  font-size: 0.75rem;
+}
+
+.clause-row p {
+  grid-column: 1 / -1;
+  margin: 5px 0 0;
+  color: #9cac9f;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.clause-editor {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid #8cc3a0;
+}
+
+.clause-editor textarea {
+  min-height: 130px;
+  resize: vertical;
+}
+
 @media (max-width: 820px) {
   .hero {
     padding-top: 82px;
@@ -466,6 +554,10 @@ button:disabled {
   }
 
   .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .regulation-workspace {
     grid-template-columns: 1fr;
   }
 

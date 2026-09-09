@@ -1,4 +1,3 @@
-from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
@@ -13,7 +12,7 @@ from app.db.session import get_database_session
 from app.domain.enums import JobStatus
 from app.domain.m1_schemas import JobResponse
 from app.services.audit import record_audit_event
-from app.services.dispatch import JobDispatcher, get_job_dispatcher
+from app.services.dispatch import JobDispatcher, dispatch_persisted_job, get_job_dispatcher
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -74,12 +73,6 @@ async def retry_job(
         payload={"next_attempt": job.attempts + 1},
     )
     await session.commit()
-    try:
-        dispatcher.dispatch_file_processing(job.id)
-    except Exception as exception:
-        job.status = JobStatus.FAILED
-        job.error_data = {"code": "dispatch_failed", "message": str(exception)}
-        job.completed_at = datetime.now(UTC)
-        await session.commit()
+    await dispatch_persisted_job(session, dispatcher, job)
     await session.refresh(job)
     return job

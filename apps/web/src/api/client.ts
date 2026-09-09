@@ -60,6 +60,40 @@ export interface UploadResult {
   job: Job;
 }
 
+export interface StandardVersion {
+  id: string;
+  standard_id: string;
+  edition: string;
+  lifecycle_status: string;
+  source_file_version_id: string;
+  parser_version: string | null;
+}
+
+export interface Standard {
+  id: string;
+  code: string;
+  title: string;
+  jurisdiction: string;
+  versions: StandardVersion[];
+}
+
+export interface Clause {
+  id: string;
+  clause_number: string;
+  level: string;
+  heading: string | null;
+  original_text: string;
+  page_number: number;
+  confidence: number | null;
+  lifecycle_status: string;
+}
+
+export interface RegulationIngestResult {
+  standard: Standard;
+  version: StandardVersion;
+  job: Job;
+}
+
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api/v1";
 
@@ -102,13 +136,62 @@ export function uploadProjectFile(
   projectId: string,
   file: File,
   logicalName: string,
+  purpose = "project_document",
 ): Promise<UploadResult> {
   const form = new FormData();
   form.append("upload", file);
   if (logicalName.trim()) form.append("logical_name", logicalName.trim());
+  form.append("purpose", purpose);
   return request<UploadResult>(`/projects/${projectId}/files`, {
     method: "POST",
     body: form,
+  });
+}
+
+export function listRegulations(signal?: AbortSignal): Promise<Standard[]> {
+  return request<Standard[]>("/regulations", { signal });
+}
+
+export function ingestRegulation(
+  fileVersionId: string,
+  code: string,
+  title: string,
+  edition: string,
+  jurisdiction: string,
+): Promise<RegulationIngestResult> {
+  return request<RegulationIngestResult>("/regulations/ingestions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      file_version_id: fileVersionId,
+      code,
+      title,
+      edition,
+      jurisdiction,
+    }),
+  });
+}
+
+export function listClauses(versionId: string, query = ""): Promise<Clause[]> {
+  const suffix = query ? `?query=${encodeURIComponent(query)}` : "";
+  return request<Clause[]>(`/regulations/versions/${versionId}/clauses${suffix}`);
+}
+
+export function updateClause(
+  clauseId: string,
+  originalText: string,
+  changeReason: string,
+): Promise<Clause> {
+  return request<Clause>(`/regulations/clauses/${clauseId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ original_text: originalText, change_reason: changeReason }),
+  });
+}
+
+export function publishVersion(versionId: string): Promise<StandardVersion> {
+  return request<StandardVersion>(`/regulations/versions/${versionId}/publish`, {
+    method: "POST",
   });
 }
 

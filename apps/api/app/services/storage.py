@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import timedelta
 from functools import lru_cache
+from pathlib import Path
 from typing import IO, BinaryIO, Protocol, cast
 
 from minio import Minio
@@ -31,6 +32,8 @@ class ObjectStorage(Protocol):
     def stat(self, object_key: str) -> StoredObject: ...
 
     def presigned_download(self, object_key: str, filename: str) -> str: ...
+
+    def download_to_file(self, object_key: str, destination: Path) -> None: ...
 
 
 class MinioObjectStorage:
@@ -95,6 +98,10 @@ class MinioObjectStorage:
                 "response-content-disposition": f'attachment; filename="{safe_filename}"'
             },
         )
+
+    def download_to_file(self, object_key: str, destination: Path) -> None:
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        self.client.fget_object(self.bucket, object_key, str(destination))
 
 
 @lru_cache

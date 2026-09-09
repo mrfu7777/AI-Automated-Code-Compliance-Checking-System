@@ -27,7 +27,7 @@ from app.domain.m1_schemas import (
     UploadResponse,
 )
 from app.services.audit import record_audit_event
-from app.services.dispatch import JobDispatcher, get_job_dispatcher
+from app.services.dispatch import JobDispatcher, dispatch_persisted_job, get_job_dispatcher
 from app.services.storage import ObjectStorage, get_object_storage
 
 router = APIRouter(prefix="/projects", tags=["projects"])
@@ -37,9 +37,7 @@ PDF_MEDIA_TYPES = {"application/pdf", "application/x-pdf"}
 CHUNK_SIZE = 1024 * 1024
 
 
-async def _owned_project(
-    session: AsyncSession, project_id: UUID, actor: Actor
-) -> Project:
+async def _owned_project(session: AsyncSession, project_id: UUID, actor: Actor) -> Project:
     project = await session.scalar(
         select(Project).where(
             Project.id == project_id,
@@ -302,13 +300,8 @@ async def upload_project_file(
     finally:
         stream.close()
 
-    try:
-        dispatcher.dispatch_file_processing(job.id)
-    except Exception as exception:
-        job.status = JobStatus.FAILED
-        job.error_data = {"code": "dispatch_failed", "message": str(exception)}
-        await session.commit()
-        await session.refresh(job)
+    await dispatch_persisted_job(session, dispatcher, job)
+    await session.refresh(job)
 
     return UploadResponse(
         project_file=_file_response(project_file, [file_version]),
