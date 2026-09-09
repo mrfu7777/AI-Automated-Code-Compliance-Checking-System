@@ -69,5 +69,10 @@ module = ["celery.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = ["minio.*", "pypdfium2.*", "rapidocr.*"]
+module = ["minio.*"]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["pypdfium2", "rapidocr", "rapidocr.*"]
+ignore_missing_imports = true
+follow_imports = "skip"
