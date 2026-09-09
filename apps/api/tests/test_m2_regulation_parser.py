@@ -33,7 +33,7 @@ def test_golden_set_builds_hierarchy_coordinates_and_continuations() -> None:
             "ocr",
             [
                 _line("建筑防火通用规范 2", 780, 795),
-                _line("2.1.3 疏散门净宽度不应小于 0.80m。", 620, 640, 0.88),
+                _line("2.1.3疏散门净宽度不应小于 0.80m。", 620, 640, 0.88),
             ],
             b"png",
         ),

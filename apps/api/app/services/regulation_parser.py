@@ -36,7 +36,7 @@ class ClauseCandidate:
 
 CHAPTER_RE = re.compile(r"^第([一二三四五六七八九十百〇零两\d]+)章\s*(.*)$")
 SECTION_RE = re.compile(r"^第([一二三四五六七八九十百〇零两\d]+)节\s*(.*)$")
-ARTICLE_RE = re.compile(r"^(\d+(?:\.\d+){1,4})\s+(.+)$")
+ARTICLE_RE = re.compile(r"^(\d+(?:\.\d+){1,4})\s*(.+)$")
 
 
 def _normalized_margin(line: TextLine) -> str:
