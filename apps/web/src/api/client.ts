@@ -94,6 +94,57 @@ export interface RegulationIngestResult {
   job: Job;
 }
 
+export interface RuleTemplate {
+  key: string;
+  title: string;
+  severity: string;
+  inputs: Record<string, unknown>[];
+  applicability: Record<string, unknown>;
+  expression: Record<string, unknown>;
+}
+
+export interface RulePack {
+  id: string;
+  standard_version_id: string;
+  name: string;
+  semantic_version: string;
+  lifecycle_status: string;
+  content_hash: string;
+}
+
+export interface Rule {
+  id: string;
+  rule_pack_id: string;
+  source_clause_id: string;
+  code: string;
+  title: string;
+  severity: string;
+  lifecycle_status: string;
+}
+
+export interface ProjectFact {
+  id: string;
+  key: string;
+  value: unknown;
+  unit: string | null;
+  supersedes_id: string | null;
+}
+
+export interface CheckResult {
+  id: string;
+  status: string;
+  severity: string;
+  message: string;
+  trace: { clause?: { number?: string; original_text?: string } };
+}
+
+export interface CheckRun {
+  id: string;
+  status: string;
+  input_hash: string;
+  results: CheckResult[];
+}
+
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api/v1";
 
@@ -193,6 +244,88 @@ export function publishVersion(versionId: string): Promise<StandardVersion> {
   return request<StandardVersion>(`/regulations/versions/${versionId}/publish`, {
     method: "POST",
   });
+}
+
+export function listRuleTemplates(): Promise<RuleTemplate[]> {
+  return request<RuleTemplate[]>("/rule-templates");
+}
+
+export function listRulePacks(): Promise<RulePack[]> {
+  return request<RulePack[]>("/rule-packs");
+}
+
+export function createRulePack(standardVersionId: string): Promise<RulePack> {
+  return request<RulePack>("/rule-packs", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      standard_version_id: standardVersionId,
+      name: "Pilot fire compliance rules",
+      semantic_version: "1.0.0",
+    }),
+  });
+}
+
+export function listRules(packId: string): Promise<Rule[]> {
+  return request<Rule[]>(`/rule-packs/${packId}/rules`);
+}
+
+export function createRuleFromTemplate(
+  packId: string,
+  clauseId: string,
+  template: RuleTemplate,
+): Promise<Rule> {
+  return request<Rule>(`/rule-packs/${packId}/rules`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      source_clause_id: clauseId,
+      code: template.key.toUpperCase().replaceAll(".", "-"),
+      title: template.title,
+      severity: template.severity,
+      applicability: template.applicability,
+      inputs: template.inputs,
+      expression: template.expression,
+      missing_data_status: "insufficient_information",
+    }),
+  });
+}
+
+export function reviewRule(ruleId: string): Promise<Rule> {
+  return request<Rule>(`/rules/${ruleId}/review`, { method: "POST" });
+}
+
+export function publishRulePack(packId: string): Promise<RulePack> {
+  return request<RulePack>(`/rule-packs/${packId}/publish`, { method: "POST" });
+}
+
+export function listFacts(projectId: string): Promise<ProjectFact[]> {
+  return request<ProjectFact[]>(`/projects/${projectId}/facts`);
+}
+
+export function createManualFact(
+  projectId: string,
+  key: string,
+  value: unknown,
+  unit: string | null,
+): Promise<ProjectFact> {
+  return request<ProjectFact>(`/projects/${projectId}/facts`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ key, value, unit, justification: "Architect-entered project fact" }),
+  });
+}
+
+export function createCheckRun(projectId: string, packId: string): Promise<{ run: CheckRun; job: Job }> {
+  return request<{ run: CheckRun; job: Job }>("/check-runs", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ project_id: projectId, rule_pack_ids: [packId], name: "Pilot review" }),
+  });
+}
+
+export function getCheckRun(runId: string): Promise<CheckRun> {
+  return request<CheckRun>(`/check-runs/${runId}`);
 }
 
 export function getJob(jobId: string, signal?: AbortSignal): Promise<Job> {

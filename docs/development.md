@@ -80,6 +80,10 @@ and immutable correction revisions. M2 uses PDFium and RapidOCR locally; no regu
 sent to a hosted OCR service. The first OCR task may take longer while the inference runtime is
 initialized. Published standard versions are immutable, so test reprocessing with a draft version.
 
+The M3 migration adds reviewer identity to rules, verifier identity to project facts, and engine
+version plus canonical input hash to check runs. Upgrade from the M2 head; do not recreate the
+database. Published rule packs are immutable, and fact corrections create superseding records.
+
 ## Repository safety
 
 Do not commit:

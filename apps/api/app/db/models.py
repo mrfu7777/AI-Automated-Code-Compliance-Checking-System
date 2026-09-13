@@ -209,6 +209,7 @@ class RulePack(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     lifecycle_status: Mapped[str] = mapped_column(String(64), nullable=False, default="draft")
     content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    published_by_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"))
 
     __table_args__ = (
         UniqueConstraint(
@@ -238,6 +239,8 @@ class Rule(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     missing_data_status: Mapped[str] = mapped_column(
         String(64), nullable=False, default="insufficient_information"
     )
+    reviewed_by_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"))
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     __table_args__ = (UniqueConstraint("rule_pack_id", "code", name="uq_rules_rule_pack_code"),)
 
@@ -255,6 +258,8 @@ class ProjectFact(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     confidence: Mapped[float | None] = mapped_column(Float)
     extractor_version: Mapped[str | None] = mapped_column(String(128))
     supersedes_id: Mapped[UUID | None] = mapped_column(ForeignKey("project_facts.id"))
+    verified_by_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"))
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Evidence(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -303,6 +308,8 @@ class CheckRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    engine_version: Mapped[str] = mapped_column(String(64), nullable=False, default="m3.engine.v1")
+    input_hash: Mapped[str] = mapped_column(String(64), nullable=False)
 
 
 class CheckResult(UUIDPrimaryKeyMixin, TimestampMixin, Base):

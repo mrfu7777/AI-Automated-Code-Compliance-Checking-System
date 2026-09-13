@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "code-compliance-api"
-version = "0.3.0"
+version = "0.4.0"
 description = "API and worker foundation for evidence-backed building code compliance review"
 requires-python = ">=3.11"
 dependencies = [
@@ -44,6 +44,7 @@ testpaths = ["tests"]
 
 [tool.coverage.run]
 branch = true
+concurrency = ["thread"]
 source = ["app"]
 
 [tool.coverage.report]

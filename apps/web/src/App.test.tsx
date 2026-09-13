@@ -15,7 +15,7 @@ function jsonResponse(payload: unknown, status = 200) {
   });
 }
 
-test("renders the M2 workspace and confirms API connectivity", async () => {
+test("renders the M3 workspace and confirms API connectivity", async () => {
   vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
     const url = String(input);
     if (url.endsWith("/health")) {
@@ -29,7 +29,7 @@ test("renders the M2 workspace and confirms API connectivity", async () => {
   render(<App />);
 
   expect(
-    screen.getByRole("heading", { name: /from source PDF to citable clauses/i }),
+    screen.getByRole("heading", { name: /from citable clauses to reproducible findings/i }),
   ).toBeInTheDocument();
   expect(screen.getByRole("button", { name: /create project/i })).toBeDisabled();
 

@@ -24,6 +24,11 @@ class CeleryJobDispatcher:
 
             process_regulation.delay(str(job_id))
             return
+        if job_type == "check.run":
+            from app.tasks.check_processing import process_check_run
+
+            process_check_run.delay(str(job_id))
+            return
         raise ValueError(f"Unsupported job type: {job_type}")
 
 

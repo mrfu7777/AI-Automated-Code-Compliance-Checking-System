@@ -2,9 +2,14 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 
 import {
   createProject,
+  createCheckRun,
+  createManualFact,
+  createRuleFromTemplate,
+  createRulePack,
   Clause,
   getHealth,
   getJob,
+  getCheckRun,
   Job,
   ingestRegulation,
   listClauses,
@@ -12,12 +17,23 @@ import {
   listProjectJobs,
   listProjects,
   listRegulations,
+  listFacts,
+  listRulePacks,
+  listRules,
+  listRuleTemplates,
   openDownload,
   Project,
   ProjectFile,
   publishVersion,
+  publishRulePack,
   retryJob,
   Standard,
+  ProjectFact,
+  Rule,
+  RulePack,
+  RuleTemplate,
+  CheckRun,
+  reviewRule,
   updateClause,
   uploadProjectFile,
 } from "./api/client";
@@ -48,6 +64,16 @@ function App() {
   const [editedText, setEditedText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [rulePacks, setRulePacks] = useState<RulePack[]>([]);
+  const [selectedPackId, setSelectedPackId] = useState<string | null>(null);
+  const [rules, setRules] = useState<Rule[]>([]);
+  const [templates, setTemplates] = useState<RuleTemplate[]>([]);
+  const [facts, setFacts] = useState<ProjectFact[]>([]);
+  const [factKey, setFactKey] = useState("egress.door_clear_width_m");
+  const [factValue, setFactValue] = useState("1.1");
+  const [factUnit, setFactUnit] = useState("m");
+  const [checkRun, setCheckRun] = useState<CheckRun | null>(null);
+  const [selectedClauseId, setSelectedClauseId] = useState<string>("");
 
   const refreshFiles = useCallback(async (projectId: string, signal?: AbortSignal) => {
     setFiles(await listProjectFiles(projectId, signal));
@@ -61,12 +87,20 @@ function App() {
         if (requestError instanceof DOMException && requestError.name === "AbortError") return;
         setConnection("unavailable");
       });
-    Promise.all([listProjects(controller.signal), listRegulations(controller.signal)])
-      .then(([items, standards]) => {
+    Promise.all([
+      listProjects(controller.signal),
+      listRegulations(controller.signal),
+      listRulePacks(),
+      listRuleTemplates(),
+    ])
+      .then(([items, standards, packs, availableTemplates]) => {
         setProjects((current) => current.length === 0 ? items : current);
         setRegulations(standards);
         if (items.length > 0) setSelectedProjectId(items[0].id);
         if (standards[0]?.versions[0]) setSelectedVersionId(standards[0].versions[0].id);
+        setRulePacks(packs);
+        setSelectedPackId(packs[0]?.id ?? null);
+        setTemplates(availableTemplates);
       })
       .catch((requestError: unknown) => {
         if (!(requestError instanceof DOMException && requestError.name === "AbortError")) {
@@ -75,6 +109,20 @@ function App() {
       });
     return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    if (!selectedPackId) return;
+    void listRules(selectedPackId).then(setRules).catch((requestError: unknown) => {
+      setError(requestError instanceof Error ? requestError.message : "Unable to load rules");
+    });
+  }, [selectedPackId]);
+
+  useEffect(() => {
+    if (!selectedProjectId) return;
+    void listFacts(selectedProjectId).then(setFacts).catch((requestError: unknown) => {
+      setError(requestError instanceof Error ? requestError.message : "Unable to load facts");
+    });
+  }, [selectedProjectId]);
 
   useEffect(() => {
     if (!selectedVersionId) {
@@ -121,6 +169,10 @@ function App() {
               void listClauses(versionId).then(setClauses);
               void listRegulations().then(setRegulations);
             }
+          }
+          if (updated.status === "succeeded" && updated.job_type === "check.run") {
+            const runId = updated.output_data?.check_run_id;
+            if (typeof runId === "string") void getCheckRun(runId).then(setCheckRun);
           }
         })
         .catch((requestError: unknown) => {
@@ -233,6 +285,79 @@ function App() {
     }
   }
 
+  async function handleCreatePack() {
+    if (!selectedVersionId) return;
+    try {
+      const created = await createRulePack(selectedVersionId);
+      setRulePacks((items) => [created, ...items]);
+      setSelectedPackId(created.id);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Unable to create rule pack");
+    }
+  }
+
+  async function handleAddRule(template: RuleTemplate) {
+    const clauseId = selectedClauseId || clauses.find((item) => item.lifecycle_status === "published")?.id;
+    if (!selectedPackId || !clauseId) return;
+    try {
+      const created = await createRuleFromTemplate(selectedPackId, clauseId, template);
+      setRules((items) => [...items, created]);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Unable to create rule");
+    }
+  }
+
+  async function handleReviewRule(ruleId: string) {
+    try {
+      const reviewed = await reviewRule(ruleId);
+      setRules((items) => items.map((item) => item.id === ruleId ? reviewed : item));
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Unable to review rule");
+    }
+  }
+
+  async function handlePublishPack() {
+    if (!selectedPackId) return;
+    try {
+      const published = await publishRulePack(selectedPackId);
+      setRulePacks((items) => items.map((item) => item.id === published.id ? published : item));
+      setRules(await listRules(selectedPackId));
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Unable to publish rule pack");
+    }
+  }
+
+  async function handleFact(event: FormEvent) {
+    event.preventDefault();
+    if (!selectedProjectId || !factKey.trim()) return;
+    const numeric = Number(factValue);
+    const value = Number.isNaN(numeric) ? factValue : numeric;
+    try {
+      const created = await createManualFact(
+        selectedProjectId,
+        factKey.trim(),
+        value,
+        factUnit.trim() || null,
+      );
+      setFacts(await listFacts(selectedProjectId));
+      setFactValue("");
+      if (created.supersedes_id) setError(null);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Unable to save fact");
+    }
+  }
+
+  async function handleRunCheck() {
+    if (!selectedProjectId || !selectedPackId) return;
+    try {
+      const created = await createCheckRun(selectedProjectId, selectedPackId);
+      setCheckRun(created.run);
+      setJob(created.job);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Unable to run check");
+    }
+  }
+
   const selectedProject = projects.find((project) => project.id === selectedProjectId) ?? null;
 
   return (
@@ -249,12 +374,98 @@ function App() {
       </nav>
 
       <section className="hero hero--compact">
-        <p className="eyebrow">M2 · Regulation digitization</p>
-        <h1>From source PDF to citable clauses.</h1>
+        <p className="eyebrow">M3 · Deterministic compliance review</p>
+        <h1>From citable clauses to reproducible findings.</h1>
         <p className="hero-copy">
           Reuse an immutable source file, extract text or OCR, review every clause, and publish a
           traceable regulation version for later compliance checks.
         </p>
+      </section>
+
+      <section className="regulation-workspace" aria-label="M3 compliance workspace">
+        <div className="panel regulation-library">
+          <div className="panel-heading">
+            <p className="eyebrow">06 · Reviewed rule packs</p>
+            <h2>Author and publish</h2>
+          </div>
+          <button disabled={!selectedVersionId} onClick={() => void handleCreatePack()} type="button">
+            Create pack from selected standard
+          </button>
+          <select
+            aria-label="Rule pack"
+            value={selectedPackId ?? ""}
+            onChange={(event) => setSelectedPackId(event.target.value || null)}
+          >
+            <option value="">Select a rule pack</option>
+            {rulePacks.map((pack) => (
+              <option key={pack.id} value={pack.id}>{pack.name} {pack.semantic_version} · {pack.lifecycle_status}</option>
+            ))}
+          </select>
+          <select
+            aria-label="Source clause"
+            value={selectedClauseId || clauses.find((item) => item.lifecycle_status === "published")?.id || ""}
+            onChange={(event) => setSelectedClauseId(event.target.value)}
+          >
+            <option value="">Select a published source clause</option>
+            {clauses.filter((clause) => clause.lifecycle_status === "published").map((clause) => (
+              <option key={clause.id} value={clause.id}>{clause.clause_number} · p.{clause.page_number}</option>
+            ))}
+          </select>
+          <p className="empty">Templates are authoring aids. Bind and verify every threshold against the selected clause.</p>
+          <div className="file-list">
+            {templates.slice(0, 10).map((template) => (
+              <button
+                className="version-row"
+                disabled={!selectedPackId || !(selectedClauseId || clauses.some((item) => item.lifecycle_status === "published"))}
+                key={template.key}
+                onClick={() => void handleAddRule(template)}
+                type="button"
+              ><span>{template.title}</span><span>Add</span></button>
+            ))}
+          </div>
+          {rules.map((rule) => (
+            <div className="version-actions" key={rule.id}>
+              <span>{rule.code} · {rule.lifecycle_status}</span>
+              {rule.lifecycle_status === "draft" && (
+                <button className="secondary-button" onClick={() => void handleReviewRule(rule.id)} type="button">Review</button>
+              )}
+            </div>
+          ))}
+          <button disabled={!selectedPackId || rules.length === 0} onClick={() => void handlePublishPack()} type="button">
+            Publish reviewed pack
+          </button>
+        </div>
+
+        <div className="panel clause-review">
+          <div className="panel-heading">
+            <p className="eyebrow">07 · Facts and results</p>
+            <h2>Run an immutable review</h2>
+          </div>
+          <form className="stack" onSubmit={handleFact}>
+            <label>Fact key<input value={factKey} onChange={(event) => setFactKey(event.target.value)} /></label>
+            <label>Value<input value={factValue} onChange={(event) => setFactValue(event.target.value)} /></label>
+            <label>Unit<input value={factUnit} onChange={(event) => setFactUnit(event.target.value)} /></label>
+            <button disabled={!selectedProjectId || !factValue} type="submit">Save verified fact</button>
+          </form>
+          <div className="file-list">
+            {facts.map((fact) => (
+              <div className="version-row" key={fact.id}>
+                <span>{fact.key}</span><span>{String(fact.value)} {fact.unit ?? ""}</span>
+              </div>
+            ))}
+          </div>
+          <button disabled={!selectedProjectId || !selectedPackId} onClick={() => void handleRunCheck()} type="button">
+            Run compliance check
+          </button>
+          {checkRun && <p className="empty">Run {checkRun.status} · {checkRun.input_hash.slice(0, 12)}</p>}
+          {checkRun?.results.map((result) => (
+            <article className="file-card" key={result.id}>
+              <strong>{result.status} · {result.severity}</strong>
+              <span>{result.message}</span>
+              <p>{result.trace.clause?.number}: {result.trace.clause?.original_text}</p>
+            </article>
+          ))}
+        </div>
       </section>
 
       {error && <div className="alert" role="alert">{error}</div>}

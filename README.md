@@ -269,6 +269,9 @@ The most important safety metric is not overall accuracy. It is the number of kn
 - Positioned page records, clause hierarchy, search, and source-page links completed
 - Human correction, revision history, split/merge, review, and immutable publishing completed
 - Generic job dispatch and lifecycle shared by M1 and M2 processors completed
+- M3 reviewed rule packages and restricted deterministic expression engine completed
+- Append-only verified project facts and evidence-backed check runs completed
+- Immutable input snapshots, five-state findings, traces, and JSON export completed
 
 ## Quick Start
 
@@ -354,6 +357,38 @@ M2 adds these API groups:
 - POST /api/v1/regulations/versions/{version_id}/publish
 - POST /api/v1/regulations/versions/{version_id}/reparse
 
+## M3 Deterministic Compliance Review
+
+M3 continues directly from published M2 clauses. An architect creates a versioned rule pack,
+binds each rule to a published clause, tests it with sample facts, reviews it, and publishes the
+pack. Published packs cannot be edited; changes begin by cloning to a new semantic version.
+
+Project facts are append-only verified records. A correction points to the fact it supersedes and
+creates manual evidence instead of overwriting history. Starting a review freezes the current
+facts, selected published rule packs, original clause text, and evidence IDs into a canonical
+snapshot. The existing durable job pipeline executes the restricted rule language and records a
+reproducible trace. Missing input is never treated as compliant.
+
+The included ten fire-safety templates are authoring examples only. They are not approved legal or
+technical interpretations; a qualified architect must validate every clause binding, scope,
+threshold, exception, dependency, unit, and test before publication.
+
+M3 adds these API groups:
+
+- GET /api/v1/rule-templates
+- POST and GET /api/v1/rule-packs
+- POST and GET /api/v1/rule-packs/{pack_id}/rules
+- PATCH /api/v1/rules/{rule_id}
+- POST /api/v1/rules/{rule_id}/trial
+- POST /api/v1/rules/{rule_id}/review
+- POST /api/v1/rule-packs/{pack_id}/publish
+- POST /api/v1/rule-packs/{pack_id}/clone
+- POST and GET /api/v1/projects/{project_id}/facts
+- POST /api/v1/check-runs
+- GET /api/v1/check-runs/{run_id}
+- GET /api/v1/projects/{project_id}/check-runs
+- GET /api/v1/check-runs/{run_id}/export
+
 ## Engineering Documentation
 
 - [Development guide](docs/development.md)
@@ -363,6 +398,7 @@ M2 adds these API groups:
 - [M0 release record](docs/releases/m0.md)
 - [M1 release record](docs/releases/m1.md)
 - [M2 release record](docs/releases/m2.md)
+- [M3 release record](docs/releases/m3.md)
 
 ## Data and Copyright Policy
 
