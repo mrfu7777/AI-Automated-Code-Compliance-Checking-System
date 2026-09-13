@@ -1,0 +1,36 @@
+{
+  "source": [
+    "建筑高度: 23.5m",
+    "地上层数: 6",
+    "建筑用途: 办公建筑",
+    "耐火等级: II",
+    "防火分区面积: 1800m2",
+    "安全出口数量: 2",
+    "疏散门净宽: 90cm",
+    "疏散走道净宽: 1.2m",
+    "疏散楼梯净宽: 1100mm",
+    "疏散距离: 35m",
+    "消防电梯: 设置",
+    "自动喷水灭火系统: 设置",
+    "防排烟系统: 未设置",
+    "火灾自动报警系统: 设置",
+    "消火栓系统: 设置"
+  ],
+  "expected": {
+    "building.height_m": 23.5,
+    "building.floor_count": 6,
+    "building.use": "办公建筑",
+    "fire_resistance.rating": "II",
+    "fire_compartment.area_m2": 1800.0,
+    "exit.count": 2,
+    "egress.door_clear_width_m": 90.0,
+    "egress.corridor_clear_width_m": 1.2,
+    "egress.stair_clear_width_m": 1100.0,
+    "egress.travel_distance_m": 35.0,
+    "fire_elevator.provided": true,
+    "sprinkler.provided": true,
+    "smoke_control.provided": false,
+    "fire_alarm.provided": true,
+    "hydrant.provided": true
+  }
+}

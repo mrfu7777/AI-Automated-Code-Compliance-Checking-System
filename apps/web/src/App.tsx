@@ -7,6 +7,8 @@ import {
   createRuleFromTemplate,
   createRulePack,
   Clause,
+  decideFactCandidate,
+  FactCandidate,
   getHealth,
   getJob,
   getCheckRun,
@@ -18,6 +20,7 @@ import {
   listProjects,
   listRegulations,
   listFacts,
+  listFactCandidates,
   listRulePacks,
   listRules,
   listRuleTemplates,
@@ -28,6 +31,7 @@ import {
   publishRulePack,
   retryJob,
   Standard,
+  startProjectExtraction,
   ProjectFact,
   Rule,
   RulePack,
@@ -69,6 +73,7 @@ function App() {
   const [rules, setRules] = useState<Rule[]>([]);
   const [templates, setTemplates] = useState<RuleTemplate[]>([]);
   const [facts, setFacts] = useState<ProjectFact[]>([]);
+  const [factCandidates, setFactCandidates] = useState<FactCandidate[]>([]);
   const [factKey, setFactKey] = useState("egress.door_clear_width_m");
   const [factValue, setFactValue] = useState("1.1");
   const [factUnit, setFactUnit] = useState("m");
@@ -119,9 +124,14 @@ function App() {
 
   useEffect(() => {
     if (!selectedProjectId) return;
-    void listFacts(selectedProjectId).then(setFacts).catch((requestError: unknown) => {
-      setError(requestError instanceof Error ? requestError.message : "Unable to load facts");
-    });
+    void Promise.all([listFacts(selectedProjectId), listFactCandidates(selectedProjectId)])
+      .then(([verifiedFacts, candidates]) => {
+        setFacts(verifiedFacts);
+        setFactCandidates(candidates);
+      })
+      .catch((requestError: unknown) => {
+        setError(requestError instanceof Error ? requestError.message : "Unable to load facts");
+      });
   }, [selectedProjectId]);
 
   useEffect(() => {
@@ -173,6 +183,11 @@ function App() {
           if (updated.status === "succeeded" && updated.job_type === "check.run") {
             const runId = updated.output_data?.check_run_id;
             if (typeof runId === "string") void getCheckRun(runId).then(setCheckRun);
+          }
+          if (updated.status === "succeeded" && updated.job_type === "project.extract") {
+            if (updated.project_id) {
+              void listFactCandidates(updated.project_id).then(setFactCandidates);
+            }
           }
         })
         .catch((requestError: unknown) => {
@@ -243,6 +258,39 @@ function App() {
       setRegulations(await listRegulations());
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Unable to ingest regulation");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleExtract(versionId: string) {
+    if (!selectedProjectId) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await startProjectExtraction(selectedProjectId, versionId);
+      setJob(result.job);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Unable to extract facts");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleCandidateDecision(factId: string, decision: "verify" | "reject") {
+    if (!selectedProjectId) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await decideFactCandidate(factId, decision);
+      const [verifiedFacts, candidates] = await Promise.all([
+        listFacts(selectedProjectId),
+        listFactCandidates(selectedProjectId),
+      ]);
+      setFacts(verifiedFacts);
+      setFactCandidates(candidates);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Unable to review candidate");
     } finally {
       setBusy(false);
     }
@@ -374,11 +422,11 @@ function App() {
       </nav>
 
       <section className="hero hero--compact">
-        <p className="eyebrow">M3 · Deterministic compliance review</p>
-        <h1>From citable clauses to reproducible findings.</h1>
+        <p className="eyebrow">M4 · Project fact extraction</p>
+        <h1>From project documents to verified compliance inputs.</h1>
         <p className="hero-copy">
-          Reuse an immutable source file, extract text or OCR, review every clause, and publish a
-          traceable regulation version for later compliance checks.
+          Extract traceable candidates from PDF, DOCX, XLSX, and IFC files, resolve conflicts with
+          an architect, and feed only verified facts into the existing deterministic checks.
         </p>
       </section>
 
@@ -440,6 +488,32 @@ function App() {
           <div className="panel-heading">
             <p className="eyebrow">07 · Facts and results</p>
             <h2>Run an immutable review</h2>
+          </div>
+          <div className="file-list">
+            {factCandidates.map((candidate) => (
+              <article className="file-card" key={candidate.id}>
+                <div>
+                  <strong>{candidate.key}</strong>
+                  <span>{String(candidate.value)} {candidate.unit ?? ""} · {candidate.verification_status}</span>
+                </div>
+                <p>
+                  Confidence {candidate.confidence === null ? "—" : `${Math.round(candidate.confidence * 100)}%`}
+                  {candidate.evidence[0]?.excerpt ? ` · ${candidate.evidence[0].excerpt}` : ""}
+                </p>
+                {candidate.evidence[0] && (
+                  <span>{candidate.evidence[0].kind} · {JSON.stringify(candidate.evidence[0].location)}</span>
+                )}
+                {(candidate.verification_status === "candidate" || candidate.verification_status === "conflicting") && (
+                  <div className="version-actions">
+                    <button disabled={busy} onClick={() => void handleCandidateDecision(candidate.id, "verify")} type="button">Verify</button>
+                    <button className="secondary-button" disabled={busy} onClick={() => void handleCandidateDecision(candidate.id, "reject")} type="button">Reject</button>
+                  </div>
+                )}
+              </article>
+            ))}
+            {selectedProjectId && factCandidates.length === 0 && (
+              <p className="empty">Extract a project document to create reviewable fact candidates.</p>
+            )}
           </div>
           <form className="stack" onSubmit={handleFact}>
             <label>Fact key<input value={factKey} onChange={(event) => setFactKey(event.target.value)} /></label>
@@ -519,9 +593,9 @@ function App() {
               />
             </label>
             <label className="file-picker">
-              PDF file · up to 150 MB
+              PDF, DOCX, XLSX, or IFC · up to 150 MB
               <input
-                accept="application/pdf,.pdf"
+                accept="application/pdf,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xlsx,application/x-step,.ifc"
                 disabled={!selectedProject}
                 onChange={(event) => setUpload(event.target.files?.[0] ?? null)}
                 type="file"
@@ -561,6 +635,14 @@ function App() {
                         type="button"
                       >Digitize this version</button>
                     )}
+                    {item.purpose === "project_document" && (
+                      <button
+                        className="secondary-button"
+                        disabled={busy}
+                        onClick={() => void handleExtract(version.id)}
+                        type="button"
+                      >Extract fact candidates</button>
+                    )}
                   </div>
                 ))}
               </article>
@@ -574,7 +656,7 @@ function App() {
             <p className="eyebrow">03 · Background job</p>
             <h2>Processing trace</h2>
           </div>
-          {!job && <p className="empty">Upload a PDF to create a real Celery job.</p>}
+          {!job && <p className="empty">Upload a supported document to create a real Celery job.</p>}
           {job && (
             <article className="job-card" aria-live="polite">
               <div className="job-state">

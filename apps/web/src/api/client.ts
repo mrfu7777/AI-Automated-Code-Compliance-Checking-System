@@ -130,6 +130,24 @@ export interface ProjectFact {
   supersedes_id: string | null;
 }
 
+export interface FactEvidence {
+  id: string;
+  file_version_id: string;
+  kind: string;
+  location: Record<string, unknown>;
+  excerpt: string | null;
+}
+
+export interface FactCandidate extends ProjectFact {
+  project_id: string;
+  scope_data: Record<string, unknown>;
+  source: string;
+  verification_status: string;
+  confidence: number | null;
+  extractor_version: string | null;
+  evidence: FactEvidence[];
+}
+
 export interface CheckResult {
   id: string;
   status: string;
@@ -301,6 +319,32 @@ export function publishRulePack(packId: string): Promise<RulePack> {
 
 export function listFacts(projectId: string): Promise<ProjectFact[]> {
   return request<ProjectFact[]>(`/projects/${projectId}/facts`);
+}
+
+export function startProjectExtraction(
+  projectId: string,
+  fileVersionId: string,
+): Promise<{ document_kind: string; job: Job }> {
+  return request<{ document_kind: string; job: Job }>(`/projects/${projectId}/extractions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ file_version_id: fileVersionId }),
+  });
+}
+
+export function listFactCandidates(projectId: string): Promise<FactCandidate[]> {
+  return request<FactCandidate[]>(`/projects/${projectId}/fact-candidates`);
+}
+
+export function decideFactCandidate(
+  factId: string,
+  decision: "verify" | "reject",
+): Promise<FactCandidate> {
+  return request<FactCandidate>(`/fact-candidates/${factId}/${decision}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ reason: `Architect ${decision}ed the extracted candidate` }),
+  });
 }
 
 export function createManualFact(

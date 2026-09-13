@@ -118,6 +118,12 @@ async def ingest_regulation(
             "file_version_not_found", "File version was not found", status_code=404
         )
     file_version, project = row
+    if not file_version.original_filename.lower().endswith(".pdf"):
+        raise ApplicationError(
+            "regulation_pdf_required",
+            "Regulation ingestion currently requires a PDF file",
+            status_code=415,
+        )
     standard = await session.scalar(
         select(Standard).where(
             Standard.organization_id == actor.organization_id,

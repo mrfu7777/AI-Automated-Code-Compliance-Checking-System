@@ -15,7 +15,7 @@ function jsonResponse(payload: unknown, status = 200) {
   });
 }
 
-test("renders the M3 workspace and confirms API connectivity", async () => {
+test("renders the M4 workspace and confirms API connectivity", async () => {
   vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
     const url = String(input);
     if (url.endsWith("/health")) {
@@ -29,7 +29,7 @@ test("renders the M3 workspace and confirms API connectivity", async () => {
   render(<App />);
 
   expect(
-    screen.getByRole("heading", { name: /from citable clauses to reproducible findings/i }),
+    screen.getByRole("heading", { name: /from project documents to verified compliance inputs/i }),
   ).toBeInTheDocument();
   expect(screen.getByRole("button", { name: /create project/i })).toBeDisabled();
 
@@ -76,4 +76,71 @@ test("creates and selects a project through the real client contract", async () 
     expect(screen.getAllByText("Warehouse Renovation")).toHaveLength(2);
   });
   expect(screen.getByText("No files uploaded yet.")).toBeInTheDocument();
+});
+
+test("verifies an extracted candidate before exposing it as a project fact", async () => {
+  const project = {
+    id: "11111111-1111-1111-1111-111111111111",
+    name: "M4 Pilot",
+    code: null,
+    jurisdiction: "China",
+    design_date: null,
+    building_type: null,
+    status: "active",
+    created_at: "2026-09-13T00:00:00Z",
+    updated_at: "2026-09-13T00:00:00Z",
+  };
+  const candidate = {
+    id: "22222222-2222-2222-2222-222222222222",
+    project_id: project.id,
+    key: "egress.door_clear_width_m",
+    value: 120,
+    unit: "cm",
+    scope_data: {},
+    source: "spreadsheet",
+    verification_status: "candidate",
+    confidence: 1,
+    extractor_version: "m4.project-extraction.v1",
+    supersedes_id: null,
+    evidence: [{
+      id: "33333333-3333-3333-3333-333333333333",
+      file_version_id: "44444444-4444-4444-4444-444444444444",
+      kind: "spreadsheet_range",
+      location: { sheet: "Fire Design", range: "A2:C2" },
+      excerpt: "Egress door clear width 120 cm",
+    }],
+  };
+  let verified = false;
+  const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+    const url = String(input);
+    if (url.endsWith("/health")) {
+      return Promise.resolve(
+        jsonResponse({ status: "ok", service: "code-compliance-api", api_version: "v1" }),
+      );
+    }
+    if (url.endsWith("/projects")) return Promise.resolve(jsonResponse([project]));
+    if (url.endsWith("/fact-candidates") && init?.method === undefined) {
+      return Promise.resolve(jsonResponse([{ ...candidate, verification_status: verified ? "verified" : "candidate" }]));
+    }
+    if (url.endsWith(`/fact-candidates/${candidate.id}/verify`)) {
+      verified = true;
+      return Promise.resolve(jsonResponse({ ...candidate, verification_status: "verified" }));
+    }
+    if (url.endsWith(`/projects/${project.id}/facts`)) {
+      return Promise.resolve(jsonResponse(verified ? [candidate] : []));
+    }
+    return Promise.resolve(jsonResponse([]));
+  });
+
+  render(<App />);
+
+  const verifyButton = await screen.findByRole("button", { name: "Verify" });
+  fireEvent.click(verifyButton);
+  await waitFor(() => {
+    expect(screen.getByText(/120 cm · verified/i)).toBeInTheDocument();
+  });
+  expect(fetchSpy).toHaveBeenCalledWith(
+    expect.stringContaining(`/fact-candidates/${candidate.id}/verify`),
+    expect.objectContaining({ method: "POST" }),
+  );
 });

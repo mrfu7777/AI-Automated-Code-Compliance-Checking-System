@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "code-compliance-api"
-version = "0.4.0"
+version = "0.5.0"
 description = "API and worker foundation for evidence-backed building code compliance review"
 requires-python = ">=3.11"
 dependencies = [
@@ -12,12 +12,15 @@ dependencies = [
   "asyncpg==0.31.0",
   "celery==5.6.3",
   "fastapi==0.141.1",
+  "ifcopenshell==0.8.5",
   "minio==7.2.20",
   "onnxruntime==1.29.0",
+  "openpyxl==3.1.5",
   "pillow==12.3.0",
   "pydantic==2.13.5",
   "pydantic-settings==2.15.0",
   "python-multipart==0.0.22",
+  "python-docx==1.2.0",
   "pypdfium2==5.13.0",
   "rapidocr==3.9.2",
   "redis==8.1.0",
@@ -33,6 +36,7 @@ dev = [
   "pytest==9.1.1",
   "pytest-cov==7.1.0",
   "ruff==0.16.6",
+  "types-openpyxl==3.1.5.20260827",
 ]
 
 [tool.setuptools.packages.find]

@@ -84,6 +84,11 @@ The M3 migration adds reviewer identity to rules, verifier identity to project f
 version plus canonical input hash to check runs. Upgrade from the M2 head; do not recreate the
 database. Published rule packs are immutable, and fact corrections create superseding records.
 
+M4 deliberately adds no schema migration. It reuses immutable `FileVersion`, persistent `Job`,
+`ProjectFact`, and `Evidence` records created in earlier milestones. Install the updated backend
+dependencies to enable DOCX, XLSX, and IFC parsing. Extraction output remains a candidate until an
+architect verifies it; only verified facts enter M3 check snapshots.
+
 ## Repository safety
 
 Do not commit:

@@ -12,6 +12,7 @@ celery_app = Celery(
         "app.tasks.file_processing",
         "app.tasks.regulation_processing",
         "app.tasks.check_processing",
+        "app.tasks.project_extraction",
     ],
 )
 celery_app.conf.update(

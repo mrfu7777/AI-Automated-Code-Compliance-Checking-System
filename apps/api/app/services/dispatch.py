@@ -29,6 +29,11 @@ class CeleryJobDispatcher:
 
             process_check_run.delay(str(job_id))
             return
+        if job_type == "project.extract":
+            from app.tasks.project_extraction import process_project_extraction
+
+            process_project_extraction.delay(str(job_id))
+            return
         raise ValueError(f"Unsupported job type: {job_type}")
 
 

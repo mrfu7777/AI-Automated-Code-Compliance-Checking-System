@@ -260,7 +260,7 @@ The most important safety metric is not overall accuracy. It is the number of kn
 - Redis, MinIO, and Docker Compose development stack defined
 - Backend and frontend quality gates running in GitHub Actions
 - M1 project creation and tenant-scoped project access completed
-- Streaming PDF upload with a configurable 150 MB limit completed
+- Streaming PDF, DOCX, XLSX, and IFC upload with a configurable 150 MB limit completed
 - Immutable file versions stored in MinIO with SHA-256 metadata in PostgreSQL
 - Celery metadata jobs, persistent progress, visible failures, and manual retry completed
 - Request-linked audit events and 15-minute presigned downloads completed
@@ -272,6 +272,10 @@ The most important safety metric is not overall accuracy. It is the number of kn
 - M3 reviewed rule packages and restricted deterministic expression engine completed
 - Append-only verified project facts and evidence-backed check runs completed
 - Immutable input snapshots, five-state findings, traces, and JSON export completed
+- M4 project-document classification and fact extraction completed for PDF, DOCX, XLSX, and IFC
+- Fifteen fire-review fact definitions, typed candidates, confidence, and source locations completed
+- Explicit multi-source conflict handling and architect verify/reject workflow completed
+- Verified machine candidates feed the existing M3 fact snapshot and rule engine without translation
 
 ## Quick Start
 
@@ -389,6 +393,33 @@ M3 adds these API groups:
 - GET /api/v1/projects/{project_id}/check-runs
 - GET /api/v1/check-runs/{run_id}/export
 
+## M4 Project Fact Extraction
+
+M4 extends the immutable M1 file pipeline and writes machine output into the M3 `ProjectFact` and
+`Evidence` model. It does not create a second fact store or a second compliance engine. A project
+document is classified by its file type, processed by the existing durable job lifecycle, and
+converted into typed candidates with confidence and a precise source location.
+
+The first extractor release supports searchable or scanned PDF, DOCX paragraphs and tables, XLSX
+cell ranges, and IFC object counts and property sets. Its reviewed catalog covers fifteen common
+fire-review inputs such as building height, use, floor count, fire-resistance rating, egress
+dimensions, travel distance, and presence of fire-protection systems. IFC also emits useful model
+inventory counts for storeys, spaces, doors, and stairs.
+
+Candidates never affect a check automatically. If sources disagree, the system marks both
+unresolved candidates as conflicting and does not silently select a value. An architect must verify
+or reject each candidate. Verification preserves the machine value, extractor version, original
+file version, excerpt, and source coordinates; a newer verified value supersedes the previous one
+without deleting history. Only verified facts are visible to the M3 snapshot builder.
+
+M4 adds these API groups:
+
+- GET /api/v1/fact-types
+- POST /api/v1/projects/{project_id}/extractions
+- GET /api/v1/projects/{project_id}/fact-candidates
+- POST /api/v1/fact-candidates/{fact_id}/verify
+- POST /api/v1/fact-candidates/{fact_id}/reject
+
 ## Engineering Documentation
 
 - [Development guide](docs/development.md)
@@ -399,6 +430,7 @@ M3 adds these API groups:
 - [M1 release record](docs/releases/m1.md)
 - [M2 release record](docs/releases/m2.md)
 - [M3 release record](docs/releases/m3.md)
+- [M4 release record](docs/releases/m4.md)
 
 ## Data and Copyright Policy
 

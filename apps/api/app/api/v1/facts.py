@@ -116,7 +116,10 @@ async def list_project_facts(
     facts = list(
         await session.scalars(
             select(ProjectFact)
-            .where(ProjectFact.project_id == project_id)
+            .where(
+                ProjectFact.project_id == project_id,
+                ProjectFact.verification_status == "verified",
+            )
             .order_by(ProjectFact.created_at.desc())
         )
     )

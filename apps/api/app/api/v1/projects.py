@@ -33,7 +33,24 @@ from app.services.storage import ObjectStorage, get_object_storage
 router = APIRouter(prefix="/projects", tags=["projects"])
 file_versions_router = APIRouter(prefix="/file-versions", tags=["files"])
 
-PDF_MEDIA_TYPES = {"application/pdf", "application/x-pdf"}
+SUPPORTED_UPLOADS = {
+    ".pdf": ({"application/pdf", "application/x-pdf"}, b"%PDF-"),
+    ".docx": (
+        {
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/zip",
+        },
+        b"PK",
+    ),
+    ".xlsx": (
+        {
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "application/zip",
+        },
+        b"PK",
+    ),
+    ".ifc": ({"application/x-step", "text/plain", "application/octet-stream"}, b"ISO-10303-21"),
+}
 CHUNK_SIZE = 1024 * 1024
 
 
@@ -49,12 +66,16 @@ async def _owned_project(session: AsyncSession, project_id: UUID, actor: Actor) 
     return project
 
 
-async def _read_pdf(upload: UploadFile) -> tuple[IO[bytes], int, str]:
+async def _read_supported_upload(upload: UploadFile) -> tuple[IO[bytes], int, str, str]:
     settings = get_settings()
     filename = upload.filename or "upload.pdf"
-    if Path(filename).suffix.lower() != ".pdf" or upload.content_type not in PDF_MEDIA_TYPES:
+    extension = Path(filename).suffix.lower()
+    expected = SUPPORTED_UPLOADS.get(extension)
+    if expected is None or upload.content_type not in expected[0]:
         raise ApplicationError(
-            "unsupported_file_type", "M1 accepts PDF files only", status_code=415
+            "unsupported_file_type",
+            "Supported project files are PDF, DOCX, XLSX, and IFC",
+            status_code=415,
         )
 
     stream: IO[bytes] = SpooledTemporaryFile(  # noqa: SIM115
@@ -74,12 +95,14 @@ async def _read_pdf(upload: UploadFile) -> tuple[IO[bytes], int, str]:
             digest.update(chunk)
             stream.write(chunk)
         stream.seek(0)
-        if size_bytes == 0 or stream.read(5) != b"%PDF-":
+        header = stream.read(max(len(expected[1]), 5))
+        if size_bytes == 0 or not header.startswith(expected[1]):
+            error_code = "invalid_pdf" if extension == ".pdf" else "invalid_project_file"
             raise ApplicationError(
-                "invalid_pdf", "File does not contain a PDF header", status_code=422
+                error_code, f"File content does not match the {extension} format", status_code=422
             )
         stream.seek(0)
-        return stream, size_bytes, digest.hexdigest()
+        return stream, size_bytes, digest.hexdigest(), extension
     except Exception:
         stream.close()
         raise
@@ -210,7 +233,7 @@ async def upload_project_file(
     purpose: Annotated[str, Form(max_length=64)] = "project_document",
 ) -> UploadResponse:
     await _owned_project(session, project_id, actor)
-    stream, size_bytes, sha256 = await _read_pdf(upload)
+    stream, size_bytes, sha256, extension = await _read_supported_upload(upload)
     filename = upload.filename or "upload.pdf"
     normalized_name = (logical_name or filename).strip()
     if not normalized_name:
@@ -245,7 +268,7 @@ async def upload_project_file(
         version_id = uuid4()
         object_key = (
             f"organizations/{actor.organization_id}/projects/{project_id}/"
-            f"files/{project_file.id}/versions/{version_number}/{version_id}.pdf"
+            f"files/{project_file.id}/versions/{version_number}/{version_id}{extension}"
         )
         await run_in_threadpool(
             storage.upload,

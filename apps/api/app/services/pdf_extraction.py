@@ -13,6 +13,12 @@ from app.services.regulation_parser import ExtractedPage, TextLine
 from app.services.storage import ObjectStorage
 
 
+def _close_resource(resource: object) -> None:
+    close = getattr(resource, "close", None)
+    if callable(close):
+        close()
+
+
 class PdfiumRegulationExtractor:
     """Extract positioned text, falling back to local Chinese OCR page by page."""
 
@@ -25,17 +31,28 @@ class PdfiumRegulationExtractor:
             source = Path(directory) / "source.pdf"
             self.storage.download_to_file(object_key, source)
             document = pdfium.PdfDocument(source)
-            return [
-                self._extract_page(document[index], index + 1) for index in range(len(document))
-            ]
+            try:
+                pages: list[ExtractedPage] = []
+                for index in range(len(document)):
+                    page = document[index]
+                    try:
+                        pages.append(self._extract_page(page, index + 1))
+                    finally:
+                        _close_resource(page)
+                return pages
+            finally:
+                _close_resource(document)
 
     def _extract_page(self, page: pdfium.PdfPage, page_number: int) -> ExtractedPage:
         width, height = page.get_size()
         bitmap = page.render(scale=2)
-        image = bitmap.to_pil()
-        image_buffer = io.BytesIO()
-        image.save(image_buffer, format="PNG")
-        image_png = image_buffer.getvalue()
+        try:
+            image = bitmap.to_pil()
+            image_buffer = io.BytesIO()
+            image.save(image_buffer, format="PNG")
+            image_png = image_buffer.getvalue()
+        finally:
+            _close_resource(bitmap)
         lines = self._text_layer_lines(page)
         useful_chars = sum(len(re.sub(r"\s+", "", line.text)) for line in lines)
         method: Literal["text_layer", "ocr"] = "text_layer"
@@ -46,19 +63,22 @@ class PdfiumRegulationExtractor:
 
     def _text_layer_lines(self, page: pdfium.PdfPage) -> list[TextLine]:
         text_page = page.get_textpage()
-        lines: list[TextLine] = []
-        chars: list[str] = []
-        boxes: list[tuple[float, float, float, float]] = []
-        for index in range(text_page.count_chars()):
-            char = text_page.get_text_range(index, 1)
-            if char in {"\r", "\n"}:
-                self._append_text_line(lines, chars, boxes)
-                chars, boxes = [], []
-            elif char:
-                chars.append(char)
-                boxes.append(text_page.get_charbox(index))
-        self._append_text_line(lines, chars, boxes)
-        return lines
+        try:
+            lines: list[TextLine] = []
+            chars: list[str] = []
+            boxes: list[tuple[float, float, float, float]] = []
+            for index in range(text_page.count_chars()):
+                char = text_page.get_text_range(index, 1)
+                if char in {"\r", "\n"}:
+                    self._append_text_line(lines, chars, boxes)
+                    chars, boxes = [], []
+                elif char:
+                    chars.append(char)
+                    boxes.append(text_page.get_charbox(index))
+            self._append_text_line(lines, chars, boxes)
+            return lines
+        finally:
+            _close_resource(text_page)
 
     @staticmethod
     def _append_text_line(
