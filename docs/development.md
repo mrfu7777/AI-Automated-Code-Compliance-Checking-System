@@ -89,6 +89,10 @@ M4 deliberately adds no schema migration. It reuses immutable `FileVersion`, per
 dependencies to enable DOCX, XLSX, and IFC parsing. Extraction output remains a candidate until an
 architect verifies it; only verified facts enter M3 check snapshots.
 
+The API image installs the minimal X11 and GL runtime libraries required by RapidOCR's OpenCV
+wheel. These are runtime dependencies only; OCR remains local and the container does not run a
+graphical desktop.
+
 ## Repository safety
 
 Do not commit:
