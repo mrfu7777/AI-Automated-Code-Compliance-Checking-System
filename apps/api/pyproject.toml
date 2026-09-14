@@ -81,3 +81,8 @@ ignore_missing_imports = true
 module = ["pypdfium2", "rapidocr", "rapidocr.*"]
 ignore_missing_imports = true
 follow_imports = "skip"
+
+[[tool.mypy.overrides]]
+module = ["ifcopenshell", "ifcopenshell.*"]
+ignore_missing_imports = true
+follow_imports = "skip"
