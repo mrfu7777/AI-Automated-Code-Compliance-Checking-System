@@ -2,7 +2,7 @@ import asyncio
 from typing import Any
 from uuid import UUID
 
-from app.db.models import Clause, Evidence, FileVersion, ProjectFact, StandardVersion
+from app.db.models import Clause, Evidence, FileVersion, ProjectFact, Standard, StandardVersion
 from app.services.job_runtime import run_persisted_job
 from app.services.review_impact import (
     affected_rule_ids,
@@ -11,7 +11,61 @@ from app.services.review_impact import (
     dependency_graph,
 )
 from app.tasks.check_processing import execute_check
-from tests.test_m3_rules_and_checks import _seed_published_clause
+
+
+async def _seed_published_clause(
+    session_factory: Any, organization_id: UUID
+) -> Clause:
+    async with session_factory() as session:
+        source = FileVersion(
+            project_file_id=None,
+            version_number=1,
+            original_filename="m6-code.pdf",
+            media_type="application/pdf",
+            size_bytes=10,
+            sha256="a" * 64,
+            object_key="tests/m6-code.pdf",
+        )
+        standard = Standard(
+            organization_id=organization_id,
+            code="GB-M6-TEST",
+            title="M6 test fire code",
+            jurisdiction="CN",
+        )
+        session.add_all([source, standard])
+        await session.flush()
+        version = StandardVersion(
+            standard_id=standard.id,
+            edition="2026",
+            lifecycle_status="published",
+            source_file_version_id=source.id,
+            document_hash=source.sha256,
+        )
+        session.add(version)
+        await session.flush()
+        clause = Clause(
+            standard_version_id=version.id,
+            clause_number="6.4.1",
+            level="article",
+            original_text="The clear width shall meet the reviewed requirement.",
+            page_number=12,
+            order_index=1,
+            lifecycle_status="published",
+        )
+        session.add(clause)
+        await session.flush()
+        session.add(
+            Evidence(
+                organization_id=organization_id,
+                clause_id=clause.id,
+                file_version_id=source.id,
+                kind="document_region",
+                location={"page": 12},
+                excerpt=clause.original_text,
+            )
+        )
+        await session.commit()
+        return clause
 
 
 def test_dependency_impact_and_conflicts_are_deterministic() -> None:
