@@ -263,11 +263,43 @@ export interface Workbench {
   findings: WorkbenchFinding[];
 }
 
+export interface MissingInformation {
+  run_id: string;
+  items: {
+    fact_key: string;
+    affected_rules: string[];
+    severity: string;
+    action: string;
+  }[];
+}
+
+export interface PilotFeedback {
+  id: string;
+  project_id: string;
+  category: string;
+  severity: string;
+  summary: string;
+  details: string;
+  time_saved_minutes: number | null;
+  status: string;
+  created_at: string;
+}
+
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api/v1";
 
+function authorizedHeaders(existing?: HeadersInit): Headers {
+  const headers = new Headers(existing);
+  const apiKey = globalThis.sessionStorage?.getItem("code-compliance-api-key");
+  if (apiKey) headers.set("Authorization", `Bearer ${apiKey}`);
+  return headers;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(API_BASE_URL + path, init);
+  const response = await fetch(API_BASE_URL + path, {
+    ...init,
+    headers: authorizedHeaders(init?.headers),
+  });
   if (!response.ok) {
     const payload = (await response.json().catch(() => null)) as {
       error?: { message?: string };
@@ -275,6 +307,22 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new Error(payload?.error?.message ?? `Request failed with status ${response.status}`);
   }
   return response.json() as Promise<T>;
+}
+
+async function download(path: string, filename: string): Promise<void> {
+  const response = await fetch(API_BASE_URL + path, { headers: authorizedHeaders() });
+  if (!response.ok) throw new Error(`Download failed with status ${response.status}`);
+  const url = URL.createObjectURL(await response.blob());
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export function setApiKey(token: string): void {
+  if (token.trim()) globalThis.sessionStorage?.setItem("code-compliance-api-key", token.trim());
+  else globalThis.sessionStorage?.removeItem("code-compliance-api-key");
 }
 
 export function getHealth(signal?: AbortSignal): Promise<HealthResponse> {
@@ -581,6 +629,27 @@ export function getWorkbench(runId: string): Promise<Workbench> {
   return request<Workbench>(`/check-runs/${runId}/workbench`);
 }
 
+export function getMissingInformation(runId: string): Promise<MissingInformation> {
+  return request<MissingInformation>(`/check-runs/${runId}/missing-information`);
+}
+
+export function createPilotFeedback(
+  projectId: string,
+  payload: {
+    category: string;
+    severity: string;
+    summary: string;
+    details: string;
+    time_saved_minutes: number | null;
+  },
+): Promise<PilotFeedback> {
+  return request<PilotFeedback>(`/projects/${projectId}/pilot-feedback`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
 export function updateFinding(
   resultId: string,
   workflowStatus: string,
@@ -593,15 +662,14 @@ export function updateFinding(
   });
 }
 
-export function openReport(runId: string, format: "pdf" | "xlsx"): void {
-  window.open(`${API_BASE_URL}/check-runs/${runId}/reports/${format}`, "_blank", "noopener,noreferrer");
+export function openReport(runId: string, format: "pdf" | "xlsx"): Promise<void> {
+  return download(`/check-runs/${runId}/reports/${format}`, `check-run-${runId}.${format}`);
 }
 
-export function openComparisonReport(runId: string, baselineRunId: string): void {
-  window.open(
-    `${API_BASE_URL}/check-runs/${runId}/comparison-report/${baselineRunId}`,
-    "_blank",
-    "noopener,noreferrer",
+export function openComparisonReport(runId: string, baselineRunId: string): Promise<void> {
+  return download(
+    `/check-runs/${runId}/comparison-report/${baselineRunId}`,
+    `check-comparison-${baselineRunId}-${runId}.json`,
   );
 }
 

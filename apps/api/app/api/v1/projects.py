@@ -397,4 +397,4 @@ async def get_download_url(
         request_id=get_request_id(request),
     )
     await session.commit()
-    return DownloadResponse(url=url)
+    return DownloadResponse(url=url, expires_in_seconds=get_settings().download_url_expiry_seconds)

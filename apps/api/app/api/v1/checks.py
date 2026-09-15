@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import textwrap
 from typing import Annotated, Any
 from uuid import UUID
 
@@ -63,6 +64,10 @@ from app.domain.m6_schemas import (
     IncrementalCreated,
     StandardRecommendation,
 )
+from app.domain.m7_schemas import (
+    MissingInformationItem,
+    MissingInformationResponse,
+)
 from app.services.audit import record_audit_event
 from app.services.dispatch import JobDispatcher, dispatch_persisted_job, get_job_dispatcher
 from app.services.review_impact import (
@@ -75,6 +80,10 @@ from app.services.rule_engine import ENGINE_VERSION
 from app.services.storage import ObjectStorage, get_object_storage
 
 router = APIRouter(tags=["checks"])
+REPORT_DISCLAIMER = (
+    "Preliminary decision-support output only. It is not a statutory approval or a substitute "
+    "for review by the responsible architect and authority."
+)
 
 
 def _canonical_hash(value: Any) -> str:
@@ -817,6 +826,53 @@ async def get_check_workbench(
     return await _workbench_response(session, storage, await _owned_run(session, run_id, actor))
 
 
+@router.get(
+    "/check-runs/{run_id}/missing-information", response_model=MissingInformationResponse
+)
+async def get_missing_information(
+    run_id: UUID,
+    actor: Annotated[Actor, Depends(get_current_actor)],
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+) -> MissingInformationResponse:
+    run = await _owned_run(session, run_id, actor)
+    results = list(
+        await session.scalars(
+            select(CheckResult).where(
+                CheckResult.check_run_id == run.id,
+                CheckResult.status == "insufficient_information",
+            )
+        )
+    )
+    rules = {
+        str(rule["id"]): rule
+        for pack in run.rule_pack_snapshot
+        for rule in pack.get("rules", [])
+    }
+    grouped: dict[str, dict[str, Any]] = {}
+    for result in results:
+        rule = rules.get(str(result.rule_id), {})
+        for input_item in rule.get("inputs", []):
+            key = str(input_item.get("fact_key", ""))
+            if not key or any(fact["key"] == key for fact in run.project_snapshot.get("facts", [])):
+                continue
+            item = grouped.setdefault(
+                key,
+                {
+                    "affected_rules": [],
+                    "severity": result.severity,
+                    "action": f"Provide and verify project evidence for '{key}'.",
+                },
+            )
+            item["affected_rules"].append(str(rule.get("code", result.rule_id)))
+    return MissingInformationResponse(
+        run_id=run.id,
+        items=[
+            MissingInformationItem(fact_key=key, **value)
+            for key, value in sorted(grouped.items())
+        ],
+    )
+
+
 @router.patch("/check-results/{result_id}", response_model=CheckResultResponse)
 async def update_check_result(
     result_id: UUID,
@@ -909,6 +965,11 @@ def _xlsx_report(workbench: WorkbenchResponse) -> bytes:
         sheet.column_dimensions[letter].width = min(
             60, max(12, max(len(str(cell.value or "")) for cell in column) + 2)
         )
+    readme = workbook.create_sheet("Read Me", 0)
+    readme.append(["Report status", "Preliminary"])
+    readme.append(["Disclaimer", REPORT_DISCLAIMER])
+    readme.column_dimensions["A"].width = 22
+    readme.column_dimensions["B"].width = 100
     buffer = io.BytesIO()
     workbook.save(buffer)
     return buffer.getvalue()
@@ -922,7 +983,12 @@ def _pdf_report(workbench: WorkbenchResponse) -> bytes:
     canvas.setTitle(f"Compliance check {workbench.run_id}")
     canvas.setFont("STSong-Light", 15)
     canvas.drawString(42, height - 46, "Evidence-backed compliance review")
-    y = height - 76
+    canvas.setFont("STSong-Light", 8)
+    disclaimer_y = height - 64
+    for line in textwrap.wrap(REPORT_DISCLAIMER, width=100):
+        canvas.drawString(42, disclaimer_y, line)
+        disclaimer_y -= 10
+    y = disclaimer_y - 14
     for index, finding in enumerate(workbench.findings, start=1):
         lines = [
             f"{index}. [{finding.severity}] {finding.status} / {finding.workflow_status}",

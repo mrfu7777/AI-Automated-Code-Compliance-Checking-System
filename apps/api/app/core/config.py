@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -12,9 +13,16 @@ class Settings(BaseSettings):
     )
 
     app_name: str = "AI Automated Code Compliance Checking System"
-    app_env: str = "development"
+    app_env: Literal["development", "production"] = "development"
     api_v1_prefix: str = "/api/v1"
     api_cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
+    auth_mode: Literal["development", "api_key"] = "development"
+    bootstrap_api_key: str = ""
+    api_key_pepper: str = "change-me-api-key-pepper"
+    download_url_expiry_seconds: int = Field(default=900, ge=60, le=3600)
+    external_model_enabled: bool = False
+    external_model_timeout_seconds: float = Field(default=20, gt=0, le=120)
+    external_model_requests_per_minute: int = Field(default=30, ge=1, le=1000)
     database_url: str = (
         "postgresql+asyncpg://code_compliance:change-me@localhost:5432/code_compliance"
     )

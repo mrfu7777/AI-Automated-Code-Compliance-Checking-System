@@ -266,20 +266,22 @@ The most important safety metric is not overall accuracy. It is the number of kn
   twenty-five rule templates, and PDF/XLSX reports completed
 - M6 exact multi-code review packages, authority markers, edition comparison, conflict escalation,
   dependency impact analysis, incremental rechecks, and baseline comparison completed
+- M7 pilot release candidate hardening completed: API-key access, roles, security headers, readiness,
+  missing-information actions, feedback triage, operations counters, resilience, and recovery proof
 
-## M6 Quick Start
+## M7 Pilot Quick Start
 
-1. Record project jurisdiction, design date, and building type, then review suggested editions.
-2. Select one or more published rule packs; their exact IDs, versions, hashes, and authority markers
-   are frozen in the review snapshot.
-3. Resolve deterministic cross-code conflicts explicitly; unresolved rules require human review.
-4. Upload a replacement version or verify corrected facts and inspect the baseline impact analysis.
-5. Run an incremental recheck. Only dependent rules execute; unaffected results are copied with a
-   trace back to their baseline result.
-6. Compare the new run with the immutable baseline and continue in the existing evidence workbench.
+1. Configure production API-key authentication and HTTPS using the deployment manual.
+2. Complete the security checklist and a PostgreSQL-plus-MinIO restore drill before loading pilot data.
+3. Follow the architect user manual through the existing regulation, rule, fact, review, evidence,
+   report, revision, and incremental-recheck workflow.
+4. Resolve every missing-information action and inspect both evidence types for every definite result.
+5. Record architect discrepancies and value observations through the pilot feedback form.
+6. Complete the acceptance record before considering V1.0. Synthetic tests are not pilot sign-off.
 
-The M6 API version is `0.7.0`. See [the M6 release notes](docs/releases/m6.md) for delivered scope,
-continuity decisions, safety boundaries, and verification.
+The M7 release candidate is `0.9.0`. See [the M7 release notes](docs/releases/m7.md),
+[pilot user manual](docs/pilot/user-manual.md), [acceptance record](docs/pilot/acceptance.md), and
+[deployment manual](docs/operations/deployment.md).
 - Backend and frontend quality gates running in GitHub Actions
 - M1 project creation and tenant-scoped project access completed
 - Streaming PDF, DOCX, XLSX, and IFC upload with a configurable 150 MB limit completed
@@ -453,6 +455,13 @@ M4 adds these API groups:
 - [M2 release record](docs/releases/m2.md)
 - [M3 release record](docs/releases/m3.md)
 - [M4 release record](docs/releases/m4.md)
+- [M5 release record](docs/releases/m5.md)
+- [M6 release record](docs/releases/m6.md)
+- [M7 release candidate](docs/releases/m7.md)
+- [M7 security checklist](docs/operations/security-checklist.md)
+- [M7 backup and restore drill](docs/operations/backup-restore-drill.md)
+- [M7 known limitations](docs/pilot/known-limitations.md)
+- [V1.0 candidate checklist](docs/releases/v1-candidate-checklist.md)
 
 ## Data and Copyright Policy
 

@@ -1,8 +1,10 @@
 import asyncio
+from io import BytesIO
 from typing import Any
 from uuid import UUID
 
 import pytest
+from openpyxl import load_workbook
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
@@ -450,6 +452,12 @@ def test_m3_review_flow_is_versioned_traceable_and_snapshot_safe(m1_environment:
     xlsx_report = client.get(f"/api/v1/check-runs/{run['id']}/reports/xlsx")
     assert pdf_report.content.startswith(b"%PDF")
     assert xlsx_report.content.startswith(b"PK")
+    workbook = load_workbook(BytesIO(xlsx_report.content), read_only=True)
+    assert "Read Me" in workbook.sheetnames
+    readme_values = " ".join(
+        str(cell.value or "") for row in workbook["Read Me"].iter_rows() for cell in row
+    )
+    assert "preliminary" in readme_values.lower()
 
     fact_two = client.post(
         f"/api/v1/projects/{project['id']}/facts",

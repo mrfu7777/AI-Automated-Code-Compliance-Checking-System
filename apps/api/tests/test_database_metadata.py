@@ -6,6 +6,7 @@ def test_core_domain_tables_are_registered() -> None:
     expected_tables = {
         "organizations",
         "users",
+        "api_keys",
         "projects",
         "project_files",
         "file_versions",
@@ -24,6 +25,7 @@ def test_core_domain_tables_are_registered() -> None:
         "check_results",
         "jobs",
         "audit_events",
+        "pilot_feedback",
     }
 
     assert expected_tables == set(Base.metadata.tables)

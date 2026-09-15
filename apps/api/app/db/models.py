@@ -43,6 +43,18 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
 
+class ApiKey(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "api_keys"
+
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    prefix: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    key_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class Project(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "projects"
 
@@ -383,6 +395,22 @@ class AuditEvent(UUIDPrimaryKeyMixin, Base):
     occurred_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, index=True
     )
+
+
+class PilotFeedback(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "pilot_feedback"
+
+    organization_id: Mapped[UUID] = mapped_column(
+        ForeignKey("organizations.id"), nullable=False, index=True
+    )
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), nullable=False, index=True)
+    submitted_by_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    category: Mapped[str] = mapped_column(String(64), nullable=False)
+    severity: Mapped[str] = mapped_column(String(32), nullable=False)
+    summary: Mapped[str] = mapped_column(String(512), nullable=False)
+    details: Mapped[str] = mapped_column(Text, nullable=False)
+    time_saved_minutes: Mapped[int | None] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="open")
 
 
 Index("ix_project_facts_project_key", ProjectFact.project_id, ProjectFact.key)

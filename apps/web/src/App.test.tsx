@@ -15,7 +15,7 @@ function jsonResponse(payload: unknown, status = 200) {
   });
 }
 
-test("renders the M6 workspace and confirms API connectivity", async () => {
+test("renders the M7 pilot workspace and confirms API connectivity", async () => {
   vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
     const url = String(input);
     if (url.endsWith("/health")) {
@@ -30,7 +30,7 @@ test("renders the M6 workspace and confirms API connectivity", async () => {
 
   expect(
     screen.getByRole("heading", {
-      name: /freeze exact code editions, then recheck only what changed/i,
+      name: /run an evidence-backed pilot without hiding uncertainty/i,
     }),
   ).toBeInTheDocument();
   expect(screen.getByRole("button", { name: /create project/i })).toBeDisabled();

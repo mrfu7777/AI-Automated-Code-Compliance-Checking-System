@@ -76,6 +76,14 @@ jobs:
           exit 1
       - name: Verify the applied database migration
         run: docker compose -f infra/docker-compose.yml exec --no-TTY api alembic current
+      - name: Exercise PostgreSQL backup and isolated restore
+        run: |
+          docker compose -f infra/docker-compose.yml exec --no-TTY postgres sh -c '
+            pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc -f /tmp/ci.dump &&
+            createdb -U "$POSTGRES_USER" ci_restore &&
+            pg_restore -U "$POSTGRES_USER" -d ci_restore /tmp/ci.dump &&
+            dropdb -U "$POSTGRES_USER" ci_restore &&
+            rm /tmp/ci.dump'
       - name: Print service logs after a failure
         if: failure()
         run: docker compose -f infra/docker-compose.yml logs

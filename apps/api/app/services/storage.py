@@ -94,7 +94,7 @@ class MinioObjectStorage:
             self.download_client.presigned_get_object(
                 self.bucket,
                 object_key,
-                expires=timedelta(minutes=15),
+                expires=timedelta(seconds=get_settings().download_url_expiry_seconds),
                 response_headers={
                     "response-content-disposition": f'attachment; filename="{safe_filename}"'
                 },

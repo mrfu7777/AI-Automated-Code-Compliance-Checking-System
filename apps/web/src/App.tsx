@@ -7,6 +7,7 @@ import {
   createDrawingPath,
   createDrawingAnnotation,
   createManualFact,
+  createPilotFeedback,
   createRuleFromTemplate,
   createRulePack,
   compareStandardVersions,
@@ -18,6 +19,7 @@ import {
   getCheckRun,
   getCheckComparison,
   getWorkbench,
+  getMissingInformation,
   Job,
   ingestRegulation,
   listClauses,
@@ -60,6 +62,8 @@ import {
   uploadProjectFile,
   DrawingPage,
   Workbench,
+  MissingInformation,
+  setApiKey,
 } from "./api/client";
 
 type ConnectionState = "checking" | "connected" | "unavailable";
@@ -120,6 +124,13 @@ function App() {
   const [annotationValue, setAnnotationValue] = useState("0.9");
   const [annotationUnit, setAnnotationUnit] = useState("m");
   const [correctionTargetId, setCorrectionTargetId] = useState("");
+  const [missingInformation, setMissingInformation] = useState<MissingInformation | null>(null);
+  const [apiKeyInput, setApiKeyInput] = useState("");
+  const [feedbackCategory, setFeedbackCategory] = useState("value");
+  const [feedbackSeverity, setFeedbackSeverity] = useState("low");
+  const [feedbackSummary, setFeedbackSummary] = useState("");
+  const [feedbackDetails, setFeedbackDetails] = useState("");
+  const [feedbackSaved, setFeedbackSaved] = useState(false);
 
   const refreshFiles = useCallback(async (projectId: string, signal?: AbortSignal) => {
     setFiles(await listProjectFiles(projectId, signal));
@@ -241,6 +252,7 @@ function App() {
                 setWorkbench(value);
                 setSelectedFindingId(value.findings[0]?.result_id ?? null);
               });
+              void getMissingInformation(runId).then(setMissingInformation);
             }
           }
           if (updated.status === "succeeded" && updated.job_type === "project.extract") {
@@ -582,6 +594,7 @@ function App() {
       setComparison(null);
       setConflicts([]);
       setWorkbench(null);
+      setMissingInformation(null);
       setJob(created.job);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Unable to run check");
@@ -595,6 +608,7 @@ function App() {
       setCheckRun(created.run);
       setComparison(null);
       setWorkbench(null);
+      setMissingInformation(null);
       setJob(created.job);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Unable to run incremental check");
@@ -627,6 +641,31 @@ function App() {
     }
   }
 
+  function handleApiKey(event: FormEvent) {
+    event.preventDefault();
+    setApiKey(apiKeyInput);
+    window.location.reload();
+  }
+
+  async function handlePilotFeedback(event: FormEvent) {
+    event.preventDefault();
+    if (!selectedProjectId || !feedbackSummary.trim() || !feedbackDetails.trim()) return;
+    try {
+      await createPilotFeedback(selectedProjectId, {
+        category: feedbackCategory,
+        severity: feedbackSeverity,
+        summary: feedbackSummary.trim(),
+        details: feedbackDetails.trim(),
+        time_saved_minutes: null,
+      });
+      setFeedbackSummary("");
+      setFeedbackDetails("");
+      setFeedbackSaved(true);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Unable to save feedback");
+    }
+  }
+
   const selectedProject = projects.find((project) => project.id === selectedProjectId) ?? null;
   const selectedFinding = workbench?.findings.find(
     (finding) => finding.result_id === selectedFindingId,
@@ -646,12 +685,25 @@ function App() {
       </nav>
 
       <section className="hero hero--compact">
-        <p className="eyebrow">M6 · Multi-code incremental review</p>
-        <h1>Freeze exact code editions, then recheck only what changed.</h1>
+        <p className="eyebrow">M7 · Pilot release candidate</p>
+        <h1>Run an evidence-backed pilot without hiding uncertainty.</h1>
         <p className="hero-copy">
-          Combine published rule packs, expose cross-code conflicts for human resolution, and
-          compare an incremental result with its immutable baseline.
+          Review exact code editions, collect every missing input as an action, and record
+          architect feedback before the V1.0 release decision.
         </p>
+        <form className="api-key-form" onSubmit={handleApiKey}>
+          <label>
+            Pilot API key
+            <input
+              aria-label="Pilot API key"
+              autoComplete="off"
+              type="password"
+              value={apiKeyInput}
+              onChange={(event) => setApiKeyInput(event.target.value)}
+            />
+          </label>
+          <button type="submit">Use key for this browser session</button>
+        </form>
       </section>
 
       <section className="regulation-workspace" aria-label="M3 compliance workspace">
@@ -785,7 +837,12 @@ function App() {
               </p>
               <button
                 className="secondary-button"
-                onClick={() => openComparisonReport(comparison.run_id, comparison.baseline_run_id)}
+                onClick={() => void openComparisonReport(
+                  comparison.run_id,
+                  comparison.baseline_run_id,
+                ).catch((requestError: unknown) => {
+                  setError(requestError instanceof Error ? requestError.message : "Unable to download comparison");
+                })}
                 type="button"
               >Download comparison JSON</button>
             </div>
@@ -811,7 +868,67 @@ function App() {
             </p>
           ))}
           {checkRun && !workbench && <p className="empty">The evidence workbench will load when the background check completes.</p>}
+          {missingInformation && (
+            <div className="file-list" aria-label="Missing information actions">
+              {missingInformation.items.map((item) => (
+                <article className="file-card" key={item.fact_key}>
+                  <strong>{item.fact_key} · {item.severity}</strong>
+                  <p>{item.action}</p>
+                  <span>Affects {item.affected_rules.join(", ")}</span>
+                </article>
+              ))}
+              {missingInformation.items.length === 0 && (
+                <p className="empty">No missing rule inputs were identified.</p>
+              )}
+            </div>
+          )}
         </div>
+      </section>
+
+      <section className="panel pilot-panel" aria-label="Pilot feedback">
+        <div className="panel-heading">
+          <p className="eyebrow">12 · Pilot acceptance</p>
+          <h2>Record an architect's observed result</h2>
+        </div>
+        <p className="empty">
+          Report false positives, false negatives, evidence problems, usability issues, or
+          measured value. This record supports triage; it is not an automatic acceptance sign-off.
+        </p>
+        <form className="stack" onSubmit={handlePilotFeedback}>
+          <label>
+            Category
+            <select value={feedbackCategory} onChange={(event) => setFeedbackCategory(event.target.value)}>
+              <option value="value">Value</option>
+              <option value="false_positive">False positive</option>
+              <option value="false_negative">False negative</option>
+              <option value="evidence">Evidence</option>
+              <option value="usability">Usability</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+          <label>
+            Severity
+            <select value={feedbackSeverity} onChange={(event) => setFeedbackSeverity(event.target.value)}>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="critical">Critical</option>
+            </select>
+          </label>
+          <label>
+            Summary
+            <input value={feedbackSummary} onChange={(event) => setFeedbackSummary(event.target.value)} />
+          </label>
+          <label>
+            Observed workflow and expected result
+            <textarea value={feedbackDetails} onChange={(event) => setFeedbackDetails(event.target.value)} />
+          </label>
+          <button
+            disabled={!selectedProjectId || !feedbackSummary.trim() || !feedbackDetails.trim()}
+            type="submit"
+          >Save pilot feedback</button>
+          {feedbackSaved && <p className="success">Feedback saved for triage.</p>}
+        </form>
       </section>
 
       <section className="drawing-workspace" aria-label="M5 drawing and finding workbench">
@@ -897,8 +1014,23 @@ function App() {
             )}
             {workbench && (
               <div className="report-actions">
-                <button onClick={() => openReport(workbench.run_id, "pdf")} type="button">PDF report</button>
-                <button className="secondary-button" onClick={() => openReport(workbench.run_id, "xlsx")} type="button">Excel report</button>
+                <button
+                  onClick={() => void openReport(workbench.run_id, "pdf").catch(
+                    (requestError: unknown) => setError(
+                      requestError instanceof Error ? requestError.message : "Unable to download PDF",
+                    ),
+                  )}
+                  type="button"
+                >PDF report</button>
+                <button
+                  className="secondary-button"
+                  onClick={() => void openReport(workbench.run_id, "xlsx").catch(
+                    (requestError: unknown) => setError(
+                      requestError instanceof Error ? requestError.message : "Unable to download workbook",
+                    ),
+                  )}
+                  type="button"
+                >Excel report</button>
               </div>
             )}
           </section>

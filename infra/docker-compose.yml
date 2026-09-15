@@ -5,6 +5,13 @@ x-app-environment: &app-environment
   APP_NAME: ${APP_NAME:-AI Automated Code Compliance Checking System}
   API_V1_PREFIX: ${API_V1_PREFIX:-/api/v1}
   API_CORS_ORIGINS: '${API_CORS_ORIGINS:-["http://localhost:5173"]}'
+  AUTH_MODE: ${AUTH_MODE:-development}
+  BOOTSTRAP_API_KEY: ${BOOTSTRAP_API_KEY:-}
+  API_KEY_PEPPER: ${API_KEY_PEPPER:-change-me-api-key-pepper}
+  DOWNLOAD_URL_EXPIRY_SECONDS: ${DOWNLOAD_URL_EXPIRY_SECONDS:-900}
+  EXTERNAL_MODEL_ENABLED: ${EXTERNAL_MODEL_ENABLED:-false}
+  EXTERNAL_MODEL_TIMEOUT_SECONDS: ${EXTERNAL_MODEL_TIMEOUT_SECONDS:-20}
+  EXTERNAL_MODEL_REQUESTS_PER_MINUTE: ${EXTERNAL_MODEL_REQUESTS_PER_MINUTE:-30}
   DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://code_compliance:change-me@postgres:5432/code_compliance}
   REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
   CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/1}

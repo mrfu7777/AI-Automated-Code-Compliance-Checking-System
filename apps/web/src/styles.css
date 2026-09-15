@@ -137,6 +137,35 @@ h1 {
   line-height: 1.75;
 }
 
+.api-key-form {
+  align-items: end;
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  margin-top: 1.25rem;
+  max-width: 760px;
+}
+
+.api-key-form label {
+  margin: 0;
+}
+
+.pilot-panel {
+  margin: 0 auto 1.5rem;
+  max-width: 1180px;
+}
+
+textarea {
+  min-height: 7rem;
+  resize: vertical;
+}
+
+@media (max-width: 680px) {
+  .api-key-form {
+    grid-template-columns: 1fr;
+  }
+}
+
 .phase {
   display: flex;
   max-width: 700px;

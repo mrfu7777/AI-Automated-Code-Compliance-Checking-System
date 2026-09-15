@@ -1,17 +1,21 @@
-from typing import Literal
+from typing import Annotated, Literal
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.checks import router as checks_router
 from app.api.v1.drawings import router as drawings_router
 from app.api.v1.extractions import router as extractions_router
 from app.api.v1.facts import router as facts_router
 from app.api.v1.jobs import router as jobs_router
+from app.api.v1.operations import router as operations_router
 from app.api.v1.projects import file_versions_router
 from app.api.v1.projects import router as projects_router
 from app.api.v1.regulations import router as regulations_router
 from app.api.v1.rules import router as rules_router
+from app.db.session import get_database_session
 from app.domain.enums import CheckStatus, EvidenceKind, JobStatus
 
 router = APIRouter()
@@ -24,12 +28,18 @@ router.include_router(facts_router)
 router.include_router(checks_router)
 router.include_router(extractions_router)
 router.include_router(drawings_router)
+router.include_router(operations_router)
 
 
 class HealthResponse(BaseModel):
     status: Literal["ok"]
     service: str
     api_version: Literal["v1"]
+
+
+class ReadinessResponse(BaseModel):
+    status: Literal["ready"]
+    database: Literal["reachable"]
 
 
 class ContractSummary(BaseModel):
@@ -45,6 +55,14 @@ async def health() -> HealthResponse:
         service="code-compliance-api",
         api_version="v1",
     )
+
+
+@router.get("/ready", response_model=ReadinessResponse, tags=["system"])
+async def readiness(
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+) -> ReadinessResponse:
+    await session.execute(text("SELECT 1"))
+    return ReadinessResponse(status="ready", database="reachable")
 
 
 @router.get("/contracts", response_model=ContractSummary, tags=["system"])

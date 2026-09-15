@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "code-compliance-api"
-version = "0.7.0"
+version = "0.9.0"
 description = "API and worker foundation for evidence-backed building code compliance review"
 requires-python = ">=3.11"
 dependencies = [
