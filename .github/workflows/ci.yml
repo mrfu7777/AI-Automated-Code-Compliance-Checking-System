@@ -62,6 +62,8 @@ jobs:
           cp .env.example .env
           sed --in-place "s/^RELEASE_REVISION=.*/RELEASE_REVISION=${GITHUB_SHA}/" .env
           sed --in-place 's/^RELEASE_IMAGE=.*/RELEASE_IMAGE=source-build/' .env
+          echo "RELEASE_REVISION=${GITHUB_SHA}" >> "$GITHUB_ENV"
+          echo "RELEASE_IMAGE=source-build" >> "$GITHUB_ENV"
       - name: Validate Docker Compose
         run: |
           docker compose -f infra/docker-compose.yml config --quiet
@@ -91,9 +93,13 @@ jobs:
         run: docker compose -f infra/docker-compose.yml exec --no-TTY api alembic current
       - name: Run the guided V1 demonstration
         run: |
-          curl --fail --silent http://localhost:8000/api/v1/release |
+          release_manifest=$(curl --fail --show-error --silent http://localhost:8000/api/v1/release)
+          echo "$release_manifest" |
             jq --exit-status --arg revision "$GITHUB_SHA" \
-              '.app_version == "1.0.0" and .source_revision == $revision'
+              '.app_version == "1.0.0" and
+               .source_revision == $revision and
+               .image == "source-build" and
+               .demo_mode_enabled == true'
           scripts/demo-smoke.sh
       - name: Exercise PostgreSQL backup and isolated restore
         run: |
