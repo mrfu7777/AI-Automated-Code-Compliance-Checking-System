@@ -1,4 +1,4 @@
-import { FormEvent, MouseEvent as ReactMouseEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, MouseEvent as ReactMouseEvent, useCallback, useEffect, useRef, useState } from "react";
 
 import {
   createProject,
@@ -71,6 +71,7 @@ import {
 } from "./api/client";
 
 type ConnectionState = "checking" | "connected" | "unavailable";
+type SimpleReviewStep = "home" | "upload" | "ready" | "reviewing" | "finished";
 
 const connectionLabels: Record<ConnectionState, string> = {
   checking: "正在连接",
@@ -248,6 +249,13 @@ function App() {
   const [release, setRelease] = useState<ReleaseManifest | null>(null);
   const [demoScenario, setDemoScenario] = useState<DemoScenario | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [simpleStep, setSimpleStep] = useState<SimpleReviewStep>("home");
+  const [simpleProjectId, setSimpleProjectId] = useState<string | null>(null);
+  const [simplePackId, setSimplePackId] = useState<string | null>(null);
+  const [simpleFileName, setSimpleFileName] = useState("");
+  const [simpleFileSize, setSimpleFileSize] = useState(0);
+  const [reportDownloaded, setReportDownloaded] = useState(false);
+  const autoDownloadReport = useRef(false);
 
   const refreshFiles = useCallback(async (projectId: string, signal?: AbortSignal) => {
     setFiles(await listProjectFiles(projectId, signal));
@@ -345,6 +353,11 @@ function App() {
       getJob(job.id, controller.signal)
         .then((updated) => {
           setJob(updated);
+          if (updated.status === "failed" && autoDownloadReport.current) {
+            autoDownloadReport.current = false;
+            setSimpleStep("ready");
+            setError(updated.error_data?.message ?? "消防审查失败，请重新开始检查。");
+          }
           if (updated.status === "succeeded" && updated.project_id) {
             void refreshFiles(updated.project_id);
           }
@@ -369,6 +382,15 @@ function App() {
               void getWorkbench(runId).then((value) => {
                 setWorkbench(value);
                 setSelectedFindingId(value.findings[0]?.result_id ?? null);
+                if (autoDownloadReport.current) {
+                  autoDownloadReport.current = false;
+                  setSimpleStep("finished");
+                  void openReport(runId, "pdf")
+                    .then(() => setReportDownloaded(true))
+                    .catch((reportError: unknown) => {
+                      setError(reportError instanceof Error ? reportError.message : "报告自动下载失败");
+                    });
+                }
               });
               void getMissingInformation(runId).then(setMissingInformation);
             }
@@ -719,6 +741,65 @@ function App() {
     }
   }
 
+  async function handleSimpleUpload(event: FormEvent) {
+    event.preventDefault();
+    if (!upload) return;
+    setBusy(true);
+    setError(null);
+    try {
+      let packId = rulePacks.find((pack) => pack.lifecycle_status === "published")?.id ?? null;
+      if (!packId && release?.demo_mode_enabled) {
+        const scenario = await createDemoScenario();
+        packId = scenario.rule_pack_id;
+        setDemoScenario(scenario);
+        const availablePacks = await listRulePacks();
+        setRulePacks(availablePacks);
+      }
+      if (!packId) throw new Error("系统中还没有可用的消防审查规则，请先配置规则集。");
+
+      const baseName = upload.name.replace(/\.[^.]+$/, "") || "建筑图纸";
+      const created = await createProject(`消防审查-${baseName}-${Date.now()}`, "中国");
+      const result = await uploadProjectFile(created.id, upload, upload.name, "project_drawing");
+      setProjects((current) => [created, ...current]);
+      setSelectedProjectId(created.id);
+      setSimpleProjectId(created.id);
+      setSimplePackId(packId);
+      setSelectedPackId(packId);
+      setReviewPackIds([packId]);
+      setSimpleFileName(upload.name);
+      setSimpleFileSize(upload.size);
+      setFiles([result.project_file]);
+      setJob(result.job);
+      setUpload(null);
+      setSimpleStep("ready");
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "无法上传图纸");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleSimpleReview() {
+    if (!simpleProjectId || !simplePackId) return;
+    setBusy(true);
+    setError(null);
+    setReportDownloaded(false);
+    try {
+      const created = await createCheckRun(simpleProjectId, [simplePackId]);
+      setCheckRun(created.run);
+      setWorkbench(null);
+      setMissingInformation(null);
+      autoDownloadReport.current = true;
+      setJob(created.job);
+      setSimpleStep("reviewing");
+    } catch (requestError) {
+      autoDownloadReport.current = false;
+      setError(requestError instanceof Error ? requestError.message : "无法开始消防审查");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handleIncrementalCheck() {
     if (!baselineRunId) return;
     try {
@@ -822,7 +903,7 @@ function App() {
 
   return (
     <main className="shell">
-      <nav className="topbar" aria-label="主导航">
+      <nav className="topbar legacy-hidden" aria-label="主导航">
         <a className="brand" href="/" aria-label="建筑消防智能审查首页">
           <span className="brand-mark">建审</span>
           <span>建筑消防智能审查</span>
@@ -834,7 +915,105 @@ function App() {
         {release && <span className="release-badge">V{release.app_version}</span>}
       </nav>
 
-      <section className="hero hero--compact">
+      <section className="simple-review" aria-label="消防审查">
+        {simpleStep === "home" && (
+          <div className="simple-home">
+            <h1>消防审查</h1>
+            <p>
+              上传一份建筑图纸，系统会按照已经配置好的消防规则逐条检查。
+              审查结束后，PDF 报告会自动下载。审查结果仅供建筑师初步复核，不能替代法定消防审查。
+            </p>
+            <button
+              className="simple-main-button"
+              disabled={connection !== "connected"}
+              onClick={() => setSimpleStep("upload")}
+              type="button"
+            >{connection === "connected" ? "开始审查" : "正在连接审查服务…"}</button>
+          </div>
+        )}
+
+        {simpleStep === "upload" && (
+          <form className="simple-card" onSubmit={handleSimpleUpload}>
+            <p className="simple-step-label">第 1 步，共 2 步</p>
+            <h1>上传建筑图纸</h1>
+            <p>请选择一份需要审查的图纸文件。当前支持 PDF、DOCX、XLSX 和 IFC，建议优先上传 PDF。</p>
+            <label className="simple-file-picker">
+              <span>{upload ? "已选择图纸" : "选择图纸文件"}</span>
+              <strong>{upload ? upload.name : "点击这里选择文件"}</strong>
+              {upload && <small>{readableBytes(upload.size)}</small>}
+              <input
+                accept=".pdf,.docx,.xlsx,.ifc"
+                aria-label="选择建筑图纸"
+                onChange={(event) => setUpload(event.target.files?.[0] ?? null)}
+                type="file"
+              />
+            </label>
+            <button className="simple-main-button" disabled={!upload || busy} type="submit">
+              {busy ? "正在上传…" : "确认上传图纸"}
+            </button>
+            <button className="simple-text-button" onClick={() => setSimpleStep("home")} type="button">返回首页</button>
+          </form>
+        )}
+
+        {simpleStep === "ready" && (
+          <div className="simple-card">
+            <p className="simple-step-label">第 2 步，共 2 步</p>
+            <h1>图纸上传完成</h1>
+            <div className="simple-file-confirmed">
+              <span aria-hidden="true">✓</span>
+              <div><strong>{simpleFileName}</strong><small>{readableBytes(simpleFileSize)}</small></div>
+            </div>
+            <div className="simple-explanation">
+              <strong>点击开始后，系统会做什么？</strong>
+              <p>系统会使用已配置的消防规则检查这份图纸。能确认的项目给出“符合”或“不符合”，无法从图纸确认的项目标记为“资料不足”。完成后自动下载 PDF 报告。</p>
+            </div>
+            <button className="simple-main-button" disabled={busy} onClick={() => void handleSimpleReview()} type="button">
+              开始检查这份图纸
+            </button>
+            <button className="simple-text-button" onClick={() => setSimpleStep("upload")} type="button">重新选择图纸</button>
+          </div>
+        )}
+
+        {simpleStep === "reviewing" && (
+          <div className="simple-card simple-status" aria-live="polite">
+            <span className="simple-spinner" aria-hidden="true" />
+            <h1>正在检查图纸</h1>
+            <p>系统正在逐条执行消防规则。检查完成后会自动下载 PDF 报告，请不要关闭此页面。</p>
+            <div className="progress"><span style={{ width: `${Math.max(job?.progress ?? 0.08, 0.08) * 100}%` }} /></div>
+          </div>
+        )}
+
+        {simpleStep === "finished" && (
+          <div className="simple-card simple-status" aria-live="polite">
+            <span className="simple-success" aria-hidden="true">✓</span>
+            <h1>消防审查完成</h1>
+            <p>{reportDownloaded ? "PDF 审查报告已经自动下载。" : "PDF 审查报告正在下载…"}</p>
+            {workbench && (
+              <div className="simple-result-summary">
+                <span><strong>{resultCounts.compliant ?? 0}</strong>符合</span>
+                <span><strong>{resultCounts.non_compliant ?? 0}</strong>不符合</span>
+                <span><strong>{resultCounts.insufficient_information ?? 0}</strong>资料不足</span>
+              </div>
+            )}
+            {workbench && <button className="simple-main-button" onClick={() => void openReport(workbench.run_id, "pdf")} type="button">再次下载报告</button>}
+            <button
+              className="simple-text-button"
+              onClick={() => {
+                setSimpleStep("upload");
+                setSimpleFileName("");
+                setSimpleFileSize(0);
+                setWorkbench(null);
+                setError(null);
+              }}
+              type="button"
+            >审查另一份图纸</button>
+          </div>
+        )}
+
+        {error && <div className="simple-error" role="alert">{error}</div>}
+      </section>
+
+      <section className="hero hero--compact legacy-hidden">
         <p className="eyebrow">V1.0 · 旧建筑改造消防合规辅助审查</p>
         <h1>上传建筑资料，快速发现消防合规问题</h1>
         <p className="hero-copy">
@@ -862,7 +1041,7 @@ function App() {
         )}
       </section>
 
-      <section className="review-console" aria-label="消防合规审查">
+      <section className="review-console legacy-hidden" aria-label="消防合规审查">
         <div className="review-overview">
           <p className="eyebrow">当前审查项目</p>
           <h2>{selectedProject ? localizedProjectName(selectedProject.name) : "尚未选择项目"}</h2>
@@ -919,7 +1098,7 @@ function App() {
       </section>
 
       {selectedFinding && (
-        <section className="evidence-summary" aria-label="问题证据">
+        <section className="evidence-summary legacy-hidden" aria-label="问题证据">
           <div>
             <p className="eyebrow">图纸与项目依据</p>
             {selectedFinding.project_evidence.map((evidence) => (
@@ -942,9 +1121,9 @@ function App() {
         </section>
       )}
 
-      {error && <div className="alert" role="alert">操作失败：{error}</div>}
+      {error && <div className="alert legacy-hidden" role="alert">操作失败：{error}</div>}
 
-      <details className="advanced-workspace" open={showAdvanced} onToggle={(event) => setShowAdvanced(event.currentTarget.open)}>
+      <details className="advanced-workspace legacy-hidden" open={showAdvanced} onToggle={(event) => setShowAdvanced(event.currentTarget.open)}>
         <summary>专业工具：项目资料、规范、规则与人工复核</summary>
         <form className="api-key-form" onSubmit={handleApiKey}>
           <label>
