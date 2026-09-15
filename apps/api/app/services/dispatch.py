@@ -34,6 +34,11 @@ class CeleryJobDispatcher:
 
             process_project_extraction.delay(str(job_id))
             return
+        if job_type == "drawing.extract":
+            from app.tasks.drawing_processing import process_drawing
+
+            process_drawing.delay(str(job_id))
+            return
         raise ValueError(f"Unsupported job type: {job_type}")
 
 

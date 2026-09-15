@@ -461,6 +461,116 @@ button:disabled {
   padding-bottom: 90px;
 }
 
+.drawing-workspace {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.8fr) minmax(680px, 1.7fr);
+  gap: 16px;
+  padding-bottom: 90px;
+}
+
+.drawing-viewer {
+  min-height: 620px;
+}
+
+.drawing-page {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: 20px;
+  border: 1px solid rgba(217, 231, 221, 0.18);
+  background: #fff;
+}
+
+.drawing-canvas {
+  position: relative;
+  margin-top: 20px;
+  cursor: crosshair;
+  user-select: none;
+}
+
+.drawing-canvas .drawing-page {
+  margin-top: 0;
+}
+
+.drawing-selection {
+  position: absolute;
+  display: grid;
+  min-width: 2px;
+  min-height: 2px;
+  place-items: center;
+  overflow: hidden;
+  border: 2px solid #e9b949;
+  background: rgba(233, 185, 73, 0.18);
+  color: #fff1bd;
+  font-size: 0.65rem;
+  pointer-events: none;
+}
+
+.workbench-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  min-height: 620px;
+  border: 1px solid rgba(217, 231, 221, 0.14);
+  background: rgba(13, 27, 21, 0.68);
+}
+
+.workbench-column {
+  min-width: 0;
+  padding: 22px;
+}
+
+.workbench-column + .workbench-column {
+  border-left: 1px solid rgba(217, 231, 221, 0.12);
+}
+
+.finding-card,
+.evidence-card {
+  display: grid;
+  width: 100%;
+  gap: 9px;
+  margin-bottom: 10px;
+  padding: 14px;
+  border: 1px solid rgba(217, 231, 221, 0.12);
+  background: rgba(7, 17, 13, 0.55);
+  color: #dce8de;
+  text-align: left;
+}
+
+.finding-card.is-selected {
+  border-color: #8cc3a0;
+  background: rgba(88, 137, 104, 0.17);
+}
+
+.finding-card span,
+.evidence-card span,
+.evidence-card a {
+  color: #91a399;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.evidence-card a {
+  color: #9ce7b5;
+}
+
+.evidence-card select {
+  min-height: 38px;
+  padding: 8px;
+  border: 1px solid rgba(217, 231, 221, 0.18);
+  background: #0a1511;
+  color: #eef4ed;
+}
+
+.report-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.report-actions button {
+  padding: 9px 12px;
+}
+
 .regulation-library,
 .clause-review {
   min-height: 480px;
@@ -559,6 +669,16 @@ button:disabled {
 
   .regulation-workspace {
     grid-template-columns: 1fr;
+  }
+
+  .drawing-workspace,
+  .workbench-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .workbench-column + .workbench-column {
+    border-top: 1px solid rgba(217, 231, 221, 0.12);
+    border-left: 0;
   }
 
   .panel {

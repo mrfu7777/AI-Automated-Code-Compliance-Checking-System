@@ -15,7 +15,7 @@ function jsonResponse(payload: unknown, status = 200) {
   });
 }
 
-test("renders the M4 workspace and confirms API connectivity", async () => {
+test("renders the M5 workspace and confirms API connectivity", async () => {
   vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
     const url = String(input);
     if (url.endsWith("/health")) {
@@ -29,7 +29,9 @@ test("renders the M4 workspace and confirms API connectivity", async () => {
   render(<App />);
 
   expect(
-    screen.getByRole("heading", { name: /from project documents to verified compliance inputs/i }),
+    screen.getByRole("heading", {
+      name: /review each finding beside its drawing and regulation evidence/i,
+    }),
   ).toBeInTheDocument();
   expect(screen.getByRole("button", { name: /create project/i })).toBeDisabled();
 

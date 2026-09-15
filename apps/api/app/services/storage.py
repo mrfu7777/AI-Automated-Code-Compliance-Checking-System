@@ -90,13 +90,15 @@ class MinioObjectStorage:
 
     def presigned_download(self, object_key: str, filename: str) -> str:
         safe_filename = filename.replace('"', "_").replace("\r", "_").replace("\n", "_")
-        return self.download_client.presigned_get_object(
-            self.bucket,
-            object_key,
-            expires=timedelta(minutes=15),
-            response_headers={
-                "response-content-disposition": f'attachment; filename="{safe_filename}"'
-            },
+        return str(
+            self.download_client.presigned_get_object(
+                self.bucket,
+                object_key,
+                expires=timedelta(minutes=15),
+                response_headers={
+                    "response-content-disposition": f'attachment; filename="{safe_filename}"'
+                },
+            )
         )
 
     def download_to_file(self, object_key: str, destination: Path) -> None:

@@ -1,12 +1,20 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request, status
-from fastapi.responses import JSONResponse
+from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import JSONResponse, StreamingResponse
+from openpyxl import Workbook
+from openpyxl.utils import get_column_letter
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.cidfonts import UnicodeCIDFont
+from reportlab.pdfgen.canvas import Canvas
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,6 +24,7 @@ from app.db.models import (
     CheckResult,
     CheckRun,
     Clause,
+    DocumentPage,
     Evidence,
     Job,
     Project,
@@ -26,6 +35,7 @@ from app.db.models import (
     RulePack,
     Standard,
     StandardVersion,
+    User,
 )
 from app.db.session import get_database_session
 from app.domain.enums import JobStatus
@@ -36,9 +46,16 @@ from app.domain.m3_schemas import (
     CheckRunCreated,
     CheckRunResponse,
 )
+from app.domain.m5_schemas import (
+    FindingUpdate,
+    WorkbenchEvidence,
+    WorkbenchFinding,
+    WorkbenchResponse,
+)
 from app.services.audit import record_audit_event
 from app.services.dispatch import JobDispatcher, dispatch_persisted_job, get_job_dispatcher
 from app.services.rule_engine import ENGINE_VERSION
+from app.services.storage import ObjectStorage, get_object_storage
 
 router = APIRouter(tags=["checks"])
 
@@ -72,6 +89,81 @@ async def _run_response(session: AsyncSession, run: CheckRun) -> CheckRunRespons
     return response.model_copy(
         update={"results": [CheckResultResponse.model_validate(item) for item in results]}
     )
+
+
+async def _workbench_evidence(
+    session: AsyncSession, storage: ObjectStorage, evidence_id: str
+) -> WorkbenchEvidence | None:
+    try:
+        evidence_uuid = UUID(evidence_id)
+    except ValueError:
+        return None
+    evidence = await session.get(Evidence, evidence_uuid)
+    if evidence is None:
+        return None
+    image_url = None
+    page_number = evidence.location.get("page")
+    if evidence.file_version_id and isinstance(page_number, int):
+        page = await session.scalar(
+            select(DocumentPage).where(
+                DocumentPage.file_version_id == evidence.file_version_id,
+                DocumentPage.page_number == page_number,
+            )
+        )
+        if page and page.image_object_key:
+            image_url = await run_in_threadpool(
+                storage.presigned_download,
+                page.image_object_key,
+                f"page-{page.page_number}.png",
+            )
+    return WorkbenchEvidence(
+        id=evidence.id,
+        kind=evidence.kind,
+        file_version_id=evidence.file_version_id,
+        location=evidence.location,
+        excerpt=evidence.excerpt,
+        image_url=image_url,
+    )
+
+
+async def _workbench_response(
+    session: AsyncSession, storage: ObjectStorage, run: CheckRun
+) -> WorkbenchResponse:
+    results = list(
+        await session.scalars(
+            select(CheckResult)
+            .where(CheckResult.check_run_id == run.id)
+            .order_by(CheckResult.created_at)
+        )
+    )
+    findings = []
+    for result in results:
+        project_items = [
+            item
+            for evidence_id in result.project_evidence_ids
+            if (item := await _workbench_evidence(session, storage, evidence_id)) is not None
+        ]
+        regulation_items = [
+            item
+            for evidence_id in result.regulation_evidence_ids
+            if (item := await _workbench_evidence(session, storage, evidence_id)) is not None
+        ]
+        findings.append(
+            WorkbenchFinding(
+                result_id=result.id,
+                rule_id=result.rule_id,
+                status=result.status,
+                severity=result.severity,
+                message=result.message,
+                workflow_status=result.workflow_status,
+                assignee_id=result.assignee_id,
+                reviewer_notes=result.reviewer_notes,
+                trace=result.trace,
+                project_evidence=project_items,
+                regulation_evidence=regulation_items,
+            )
+        )
+    return WorkbenchResponse(run_id=run.id, findings=findings)
 
 
 async def _project_snapshot(session: AsyncSession, project_id: UUID) -> dict[str, Any]:
@@ -290,4 +382,178 @@ async def export_check_run(
     return JSONResponse(
         content=response.model_dump(mode="json"),
         headers={"Content-Disposition": f'attachment; filename="check-run-{run_id}.json"'},
+    )
+
+
+@router.get("/check-runs/{run_id}/workbench", response_model=WorkbenchResponse)
+async def get_check_workbench(
+    run_id: UUID,
+    actor: Annotated[Actor, Depends(get_current_actor)],
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+    storage: Annotated[ObjectStorage, Depends(get_object_storage)],
+) -> WorkbenchResponse:
+    return await _workbench_response(session, storage, await _owned_run(session, run_id, actor))
+
+
+@router.patch("/check-results/{result_id}", response_model=CheckResultResponse)
+async def update_check_result(
+    result_id: UUID,
+    payload: FindingUpdate,
+    request: Request,
+    actor: Annotated[Actor, Depends(get_current_actor)],
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+) -> CheckResult:
+    result = await session.scalar(
+        select(CheckResult)
+        .join(CheckRun)
+        .join(ReviewPackage)
+        .join(Project)
+        .where(CheckResult.id == result_id, Project.organization_id == actor.organization_id)
+    )
+    if result is None:
+        raise ApplicationError(
+            "check_result_not_found", "Check result was not found", status_code=404
+        )
+    changes = payload.model_dump(exclude_unset=True)
+    assignee_id = changes.get("assignee_id")
+    if assignee_id is not None:
+        assignee = await session.scalar(
+            select(User).where(
+                User.id == assignee_id, User.organization_id == actor.organization_id
+            )
+        )
+        if assignee is None:
+            raise ApplicationError("assignee_not_found", "Assignee was not found", status_code=404)
+    for field, value in changes.items():
+        setattr(result, field, value)
+    record_audit_event(
+        session,
+        organization_id=actor.organization_id,
+        actor_id=actor.user_id,
+        action="check_result.updated",
+        entity_type="check_result",
+        entity_id=result.id,
+        request_id=get_request_id(request),
+        payload={
+            key: str(value) if isinstance(value, UUID) else value
+            for key, value in changes.items()
+        },
+    )
+    await session.commit()
+    await session.refresh(result)
+    return result
+
+
+def _xlsx_report(workbench: WorkbenchResponse) -> bytes:
+    workbook = Workbook()
+    sheet = workbook.active
+    assert sheet is not None
+    sheet.title = "Findings"
+    sheet.append(
+        [
+            "Result ID",
+            "Status",
+            "Severity",
+            "Workflow",
+            "Message",
+            "Drawing evidence",
+            "Regulation evidence",
+            "Reviewer notes",
+        ]
+    )
+    for finding in workbench.findings:
+        project_refs = "; ".join(
+            f"page {item.location.get('page', '?')}: {item.excerpt or ''}"
+            for item in finding.project_evidence
+        )
+        regulation_refs = "; ".join(
+            f"page {item.location.get('page', '?')}: {item.excerpt or ''}"
+            for item in finding.regulation_evidence
+        )
+        sheet.append(
+            [
+                str(finding.result_id),
+                finding.status,
+                finding.severity,
+                finding.workflow_status,
+                finding.message,
+                project_refs,
+                regulation_refs,
+                finding.reviewer_notes or "",
+            ]
+        )
+    sheet.freeze_panes = "A2"
+    for index, column in enumerate(sheet.columns, start=1):
+        letter = get_column_letter(index)
+        sheet.column_dimensions[letter].width = min(
+            60, max(12, max(len(str(cell.value or "")) for cell in column) + 2)
+        )
+    buffer = io.BytesIO()
+    workbook.save(buffer)
+    return buffer.getvalue()
+
+
+def _pdf_report(workbench: WorkbenchResponse) -> bytes:
+    buffer = io.BytesIO()
+    pdfmetrics.registerFont(UnicodeCIDFont("STSong-Light"))
+    canvas = Canvas(buffer, pagesize=A4)
+    _, height = A4
+    canvas.setTitle(f"Compliance check {workbench.run_id}")
+    canvas.setFont("STSong-Light", 15)
+    canvas.drawString(42, height - 46, "Evidence-backed compliance review")
+    y = height - 76
+    for index, finding in enumerate(workbench.findings, start=1):
+        lines = [
+            f"{index}. [{finding.severity}] {finding.status} / {finding.workflow_status}",
+            finding.message,
+            "Drawing: "
+            + "; ".join(
+                f"p.{item.location.get('page', '?')} {item.excerpt or ''}"
+                for item in finding.project_evidence
+            ),
+            "Regulation: "
+            + "; ".join(
+                f"p.{item.location.get('page', '?')} {item.excerpt or ''}"
+                for item in finding.regulation_evidence
+            ),
+        ]
+        for line in lines:
+            if y < 54:
+                canvas.showPage()
+                y = height - 46
+            canvas.setFont("STSong-Light", 10)
+            canvas.drawString(42, y, line[:105])
+            y -= 16
+        y -= 7
+    canvas.save()
+    return buffer.getvalue()
+
+
+@router.get("/check-runs/{run_id}/reports/{report_format}")
+async def export_check_report(
+    run_id: UUID,
+    report_format: str,
+    actor: Annotated[Actor, Depends(get_current_actor)],
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+    storage: Annotated[ObjectStorage, Depends(get_object_storage)],
+) -> StreamingResponse:
+    if report_format not in {"pdf", "xlsx"}:
+        raise ApplicationError(
+            "unsupported_report_format", "Report format must be pdf or xlsx", status_code=404
+        )
+    workbench = await _workbench_response(
+        session, storage, await _owned_run(session, run_id, actor)
+    )
+    content = _pdf_report(workbench) if report_format == "pdf" else _xlsx_report(workbench)
+    media_type = (
+        "application/pdf"
+        if report_format == "pdf"
+        else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    return StreamingResponse(
+        io.BytesIO(content),
+        media_type=media_type,
+        headers={
+            "Content-Disposition": f'attachment; filename="check-run-{run_id}.{report_format}"'
+        },
     )

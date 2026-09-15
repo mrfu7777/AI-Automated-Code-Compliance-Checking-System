@@ -4,6 +4,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from app.api.v1.checks import router as checks_router
+from app.api.v1.drawings import router as drawings_router
 from app.api.v1.extractions import router as extractions_router
 from app.api.v1.facts import router as facts_router
 from app.api.v1.jobs import router as jobs_router
@@ -22,6 +23,7 @@ router.include_router(rules_router)
 router.include_router(facts_router)
 router.include_router(checks_router)
 router.include_router(extractions_router)
+router.include_router(drawings_router)
 
 
 class HealthResponse(BaseModel):

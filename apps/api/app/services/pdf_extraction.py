@@ -107,9 +107,9 @@ class PdfiumRegulationExtractor:
         if self.ocr is None:
             self.ocr = RapidOCR()
         output = cast(Any, self.ocr(image_png))
-        boxes = output.boxes or []
-        texts = output.txts or []
-        scores = output.scores or []
+        boxes = output.boxes if output.boxes is not None else []
+        texts = output.txts if output.txts is not None else []
+        scores = output.scores if output.scores is not None else []
         result: list[TextLine] = []
         for box, text, score in zip(boxes, texts, scores, strict=False):
             xs = [float(point[0]) for point in box]

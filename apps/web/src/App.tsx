@@ -1,8 +1,10 @@
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, MouseEvent as ReactMouseEvent, useCallback, useEffect, useState } from "react";
 
 import {
   createProject,
   createCheckRun,
+  createDrawingPath,
+  createDrawingAnnotation,
   createManualFact,
   createRuleFromTemplate,
   createRulePack,
@@ -12,6 +14,7 @@ import {
   getHealth,
   getJob,
   getCheckRun,
+  getWorkbench,
   Job,
   ingestRegulation,
   listClauses,
@@ -21,10 +24,12 @@ import {
   listRegulations,
   listFacts,
   listFactCandidates,
+  listDrawingPages,
   listRulePacks,
   listRules,
   listRuleTemplates,
   openDownload,
+  openReport,
   Project,
   ProjectFile,
   publishVersion,
@@ -32,6 +37,7 @@ import {
   retryJob,
   Standard,
   startProjectExtraction,
+  startDrawingExtraction,
   ProjectFact,
   Rule,
   RulePack,
@@ -39,7 +45,10 @@ import {
   CheckRun,
   reviewRule,
   updateClause,
+  updateFinding,
   uploadProjectFile,
+  DrawingPage,
+  Workbench,
 } from "./api/client";
 
 type ConnectionState = "checking" | "connected" | "unavailable";
@@ -79,6 +88,19 @@ function App() {
   const [factUnit, setFactUnit] = useState("m");
   const [checkRun, setCheckRun] = useState<CheckRun | null>(null);
   const [selectedClauseId, setSelectedClauseId] = useState<string>("");
+  const [drawingVersionId, setDrawingVersionId] = useState<string | null>(null);
+  const [drawingPages, setDrawingPages] = useState<DrawingPage[]>([]);
+  const [workbench, setWorkbench] = useState<Workbench | null>(null);
+  const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
+  const [pathCoordinates, setPathCoordinates] = useState("20,20;220,20;220,160");
+  const [pixelsPerMeter, setPixelsPerMeter] = useState("20");
+  const [boxStart, setBoxStart] = useState<{ x: number; y: number } | null>(null);
+  const [selectedBox, setSelectedBox] = useState<Record<string, number> | null>(null);
+  const [annotationKind, setAnnotationKind] = useState<"object" | "dimension" | "scale">("dimension");
+  const [annotationKey, setAnnotationKey] = useState("egress.door_clear_width_m");
+  const [annotationValue, setAnnotationValue] = useState("0.9");
+  const [annotationUnit, setAnnotationUnit] = useState("m");
+  const [correctionTargetId, setCorrectionTargetId] = useState("");
 
   const refreshFiles = useCallback(async (projectId: string, signal?: AbortSignal) => {
     setFiles(await listProjectFiles(projectId, signal));
@@ -182,11 +204,29 @@ function App() {
           }
           if (updated.status === "succeeded" && updated.job_type === "check.run") {
             const runId = updated.output_data?.check_run_id;
-            if (typeof runId === "string") void getCheckRun(runId).then(setCheckRun);
+            if (typeof runId === "string") {
+              void getCheckRun(runId).then(setCheckRun);
+              void getWorkbench(runId).then((value) => {
+                setWorkbench(value);
+                setSelectedFindingId(value.findings[0]?.result_id ?? null);
+              });
+            }
           }
           if (updated.status === "succeeded" && updated.job_type === "project.extract") {
             if (updated.project_id) {
               void listFactCandidates(updated.project_id).then(setFactCandidates);
+            }
+          }
+          if (updated.status === "succeeded" && updated.job_type === "drawing.extract") {
+            if (updated.project_id && updated.file_version_id) {
+              setDrawingVersionId(updated.file_version_id);
+              void Promise.all([
+                listDrawingPages(updated.project_id, updated.file_version_id),
+                listFactCandidates(updated.project_id),
+              ]).then(([pages, candidates]) => {
+                setDrawingPages(pages);
+                setFactCandidates(candidates);
+              });
             }
           }
         })
@@ -274,6 +314,113 @@ function App() {
       setError(requestError instanceof Error ? requestError.message : "Unable to extract facts");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function handleDrawingExtract(versionId: string) {
+    if (!selectedProjectId) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await startDrawingExtraction(selectedProjectId, versionId);
+      setDrawingVersionId(versionId);
+      setJob(result.job);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Unable to extract drawing");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handlePathMeasurement(event: FormEvent) {
+    event.preventDefault();
+    if (!selectedProjectId || !drawingVersionId || !drawingPages[0]) return;
+    const points = pathCoordinates.split(";").map((pair) => {
+      const [x, y] = pair.split(",").map(Number);
+      return { x, y };
+    });
+    const calibration = Number(pixelsPerMeter);
+    if (points.some((point) => !Number.isFinite(point.x) || !Number.isFinite(point.y)) || calibration <= 0) {
+      setError("Use x,y coordinate pairs and a positive pixels-per-metre calibration.");
+      return;
+    }
+    try {
+      await createDrawingPath(
+        selectedProjectId,
+        drawingVersionId,
+        drawingPages[0].page_number,
+        points,
+        calibration,
+      );
+      setFactCandidates(await listFactCandidates(selectedProjectId));
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Unable to save path");
+    }
+  }
+
+  function drawingPoint(event: ReactMouseEvent<HTMLDivElement>) {
+    const page = drawingPages[0];
+    const bounds = event.currentTarget.getBoundingClientRect();
+    return {
+      x: ((event.clientX - bounds.left) / bounds.width) * page.width,
+      y: page.height - ((event.clientY - bounds.top) / bounds.height) * page.height,
+    };
+  }
+
+  function handleBoxStart(event: ReactMouseEvent<HTMLDivElement>) {
+    if (!drawingPages[0]) return;
+    setBoxStart(drawingPoint(event));
+  }
+
+  function handleBoxEnd(event: ReactMouseEvent<HTMLDivElement>) {
+    if (!boxStart || !drawingPages[0]) return;
+    const end = drawingPoint(event);
+    setSelectedBox({
+      x0: Math.min(boxStart.x, end.x),
+      y0: Math.min(boxStart.y, end.y),
+      x1: Math.max(boxStart.x, end.x),
+      y1: Math.max(boxStart.y, end.y),
+    });
+    setBoxStart(null);
+  }
+
+  async function handleBoxAnnotation(event: FormEvent) {
+    event.preventDefault();
+    if (!selectedProjectId || !drawingVersionId || !drawingPages[0]) return;
+    const numeric = Number(annotationValue);
+    const value = Number.isNaN(numeric) ? annotationValue : numeric;
+    try {
+      await createDrawingAnnotation(selectedProjectId, {
+        file_version_id: drawingVersionId,
+        page_number: drawingPages[0].page_number,
+        annotation_kind: annotationKind,
+        fact_key: annotationKey,
+        value,
+        unit: annotationUnit || null,
+        label: "Architect-corrected drawing annotation",
+        bbox: selectedBox,
+        corrects_fact_id: correctionTargetId || null,
+      });
+      setFactCandidates(await listFactCandidates(selectedProjectId));
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Unable to save annotation");
+    }
+  }
+
+  async function handleFindingStatus(resultId: string, workflowStatus: string) {
+    if (!workbench) return;
+    try {
+      const updated = await updateFinding(resultId, workflowStatus, "Architect workbench update");
+      setWorkbench({
+        ...workbench,
+        findings: workbench.findings.map((item) => item.result_id === resultId ? {
+          ...item,
+          workflow_status: updated.workflow_status,
+          reviewer_notes: updated.reviewer_notes,
+        } : item),
+      });
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Unable to update finding");
     }
   }
 
@@ -400,6 +547,7 @@ function App() {
     try {
       const created = await createCheckRun(selectedProjectId, selectedPackId);
       setCheckRun(created.run);
+      setWorkbench(null);
       setJob(created.job);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Unable to run check");
@@ -407,6 +555,9 @@ function App() {
   }
 
   const selectedProject = projects.find((project) => project.id === selectedProjectId) ?? null;
+  const selectedFinding = workbench?.findings.find(
+    (finding) => finding.result_id === selectedFindingId,
+  ) ?? workbench?.findings[0] ?? null;
 
   return (
     <main className="shell">
@@ -422,11 +573,11 @@ function App() {
       </nav>
 
       <section className="hero hero--compact">
-        <p className="eyebrow">M4 · Project fact extraction</p>
-        <h1>From project documents to verified compliance inputs.</h1>
+        <p className="eyebrow">M5 · Drawing evidence workbench</p>
+        <h1>Review each finding beside its drawing and regulation evidence.</h1>
         <p className="hero-copy">
-          Extract traceable candidates from PDF, DOCX, XLSX, and IFC files, resolve conflicts with
-          an architect, and feed only verified facts into the existing deterministic checks.
+          Extract positioned drawing candidates, calibrate measured paths, confirm facts with an
+          architect, and navigate from a finding to both sides of its evidence chain.
         </p>
       </section>
 
@@ -532,13 +683,98 @@ function App() {
             Run compliance check
           </button>
           {checkRun && <p className="empty">Run {checkRun.status} · {checkRun.input_hash.slice(0, 12)}</p>}
-          {checkRun?.results.map((result) => (
-            <article className="file-card" key={result.id}>
-              <strong>{result.status} · {result.severity}</strong>
-              <span>{result.message}</span>
-              <p>{result.trace.clause?.number}: {result.trace.clause?.original_text}</p>
-            </article>
-          ))}
+          {checkRun && !workbench && <p className="empty">The evidence workbench will load when the background check completes.</p>}
+        </div>
+      </section>
+
+      <section className="drawing-workspace" aria-label="M5 drawing and finding workbench">
+        <div className="panel drawing-viewer">
+          <div className="panel-heading">
+            <p className="eyebrow">08 · Drawing evidence</p>
+            <h2>Page viewer and calibration</h2>
+          </div>
+          {drawingPages[0]?.image_url ? (
+            <div className="drawing-canvas" onMouseDown={handleBoxStart} onMouseUp={handleBoxEnd} role="presentation">
+              <img className="drawing-page" src={drawingPages[0].image_url} alt={`Drawing page ${drawingPages[0].page_number}`} draggable={false} />
+              {selectedBox && (
+                <span
+                  className="drawing-selection"
+                  style={{
+                    left: `${(selectedBox.x0 / drawingPages[0].width) * 100}%`,
+                    top: `${(1 - selectedBox.y1 / drawingPages[0].height) * 100}%`,
+                    width: `${((selectedBox.x1 - selectedBox.x0) / drawingPages[0].width) * 100}%`,
+                    height: `${((selectedBox.y1 - selectedBox.y0) / drawingPages[0].height) * 100}%`,
+                  }}
+                >Selected region</span>
+              )}
+            </div>
+          ) : <p className="empty">Run drawing extraction on a PDF to create positioned page evidence.</p>}
+          <form className="stack" onSubmit={handleBoxAnnotation}>
+            <label>Annotation type<select value={annotationKind} onChange={(event) => setAnnotationKind(event.target.value as "object" | "dimension" | "scale")}><option value="object">Object</option><option value="dimension">Dimension</option><option value="scale">Scale</option></select></label>
+            <label>Fact key<input value={annotationKey} onChange={(event) => setAnnotationKey(event.target.value)} /></label>
+            <label>Corrected value<input value={annotationValue} onChange={(event) => setAnnotationValue(event.target.value)} /></label>
+            <label>Unit<input value={annotationUnit} onChange={(event) => setAnnotationUnit(event.target.value)} /></label>
+            <label>Corrects candidate<select value={correctionTargetId} onChange={(event) => setCorrectionTargetId(event.target.value)}><option value="">New annotation</option>{factCandidates.filter((item) => item.source === "drawing").map((item) => <option key={item.id} value={item.id}>{item.key} · {String(item.value)}</option>)}</select></label>
+            <button disabled={!drawingPages[0] || !annotationKey || !annotationValue} type="submit">Save selected-region candidate</button>
+          </form>
+          <form className="stack" onSubmit={handlePathMeasurement}>
+            <label>Path points (x,y; x,y)<input value={pathCoordinates} onChange={(event) => setPathCoordinates(event.target.value)} /></label>
+            <label>Pixels per metre<input value={pixelsPerMeter} onChange={(event) => setPixelsPerMeter(event.target.value)} /></label>
+            <button disabled={!drawingPages[0]} type="submit">Create travel-distance candidate</button>
+          </form>
+        </div>
+
+        <div className="workbench-grid">
+          <section className="workbench-column">
+            <p className="eyebrow">09 · Findings</p>
+            {workbench?.findings.map((finding) => (
+              <button
+                className={finding.result_id === selectedFinding?.result_id ? "finding-card is-selected" : "finding-card"}
+                key={finding.result_id}
+                onClick={() => setSelectedFindingId(finding.result_id)}
+                type="button"
+              >
+                <strong>{finding.status} · {finding.severity}</strong>
+                <span>{finding.message}</span>
+              </button>
+            ))}
+            {!workbench && <p className="empty">Run a published rule pack to open the review workbench.</p>}
+          </section>
+          <section className="workbench-column">
+            <p className="eyebrow">10 · Project evidence</p>
+            {selectedFinding?.project_evidence.map((evidence) => (
+              <article className="evidence-card" key={evidence.id}>
+                <strong>Drawing page {String(evidence.location.page ?? "—")}</strong>
+                <span>{evidence.excerpt ?? "No excerpt"}</span>
+                {evidence.image_url && <a href={evidence.image_url} target="_blank" rel="noreferrer">Open positioned page</a>}
+              </article>
+            ))}
+            {selectedFinding && selectedFinding.project_evidence.length === 0 && <p className="empty">No project evidence was used.</p>}
+          </section>
+          <section className="workbench-column">
+            <p className="eyebrow">11 · Regulation basis</p>
+            {selectedFinding && (
+              <article className="evidence-card">
+                <strong>{selectedFinding.trace.clause?.number ?? "Clause"} · page {selectedFinding.trace.clause?.page_number ?? "—"}</strong>
+                <span>{selectedFinding.trace.clause?.original_text ?? "No clause snapshot"}</span>
+                {selectedFinding.regulation_evidence[0]?.image_url && (
+                  <a href={selectedFinding.regulation_evidence[0].image_url} target="_blank" rel="noreferrer">Open regulation page</a>
+                )}
+                <select value={selectedFinding.workflow_status} onChange={(event) => void handleFindingStatus(selectedFinding.result_id, event.target.value)}>
+                  <option value="open">Open</option>
+                  <option value="in_review">In review</option>
+                  <option value="resolved">Resolved</option>
+                  <option value="accepted_risk">Accepted risk</option>
+                </select>
+              </article>
+            )}
+            {workbench && (
+              <div className="report-actions">
+                <button onClick={() => openReport(workbench.run_id, "pdf")} type="button">PDF report</button>
+                <button className="secondary-button" onClick={() => openReport(workbench.run_id, "xlsx")} type="button">Excel report</button>
+              </div>
+            )}
+          </section>
         </div>
       </section>
 
@@ -636,12 +872,22 @@ function App() {
                       >Digitize this version</button>
                     )}
                     {item.purpose === "project_document" && (
-                      <button
-                        className="secondary-button"
-                        disabled={busy}
-                        onClick={() => void handleExtract(version.id)}
-                        type="button"
-                      >Extract fact candidates</button>
+                      <div className="version-actions">
+                        <button
+                          className="secondary-button"
+                          disabled={busy}
+                          onClick={() => void handleExtract(version.id)}
+                          type="button"
+                        >Extract facts</button>
+                        {version.original_filename.toLowerCase().endsWith(".pdf") && (
+                          <button
+                            className="secondary-button"
+                            disabled={busy}
+                            onClick={() => void handleDrawingExtract(version.id)}
+                            type="button"
+                          >Extract drawing</button>
+                        )}
+                      </div>
                     )}
                   </div>
                 ))}

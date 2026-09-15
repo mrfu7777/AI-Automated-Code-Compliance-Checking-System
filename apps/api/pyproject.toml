@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "code-compliance-api"
-version = "0.5.0"
+version = "0.6.0"
 description = "API and worker foundation for evidence-backed building code compliance review"
 requires-python = ">=3.11"
 dependencies = [
@@ -23,6 +23,7 @@ dependencies = [
   "python-docx==1.2.0",
   "pypdfium2==5.13.0",
   "rapidocr==3.9.2",
+  "reportlab==4.4.4",
   "redis==8.1.0",
   "sqlalchemy==2.0.52",
   "uvicorn[standard]==0.52.4",
@@ -37,6 +38,7 @@ dev = [
   "pytest-cov==7.1.0",
   "ruff==0.16.6",
   "types-openpyxl==3.1.5.20260827",
+  "types-reportlab==4.4.4.20250926",
 ]
 
 [tool.setuptools.packages.find]

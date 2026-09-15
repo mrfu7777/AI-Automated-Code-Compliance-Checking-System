@@ -435,6 +435,21 @@ def test_m3_review_flow_is_versioned_traceable_and_snapshot_safe(m1_environment:
     assert completed["results"][0]["regulation_evidence_ids"]
     assert completed["results"][0]["project_evidence_ids"]
     assert completed["results"][0]["trace"]["clause"]["original_text"]
+    result_id = completed["results"][0]["id"]
+    updated_finding = client.patch(
+        f"/api/v1/check-results/{result_id}",
+        json={"workflow_status": "in_review", "reviewer_notes": "Check drawing A-101"},
+    )
+    assert updated_finding.status_code == 200
+    assert updated_finding.json()["workflow_status"] == "in_review"
+    workbench = client.get(f"/api/v1/check-runs/{run['id']}/workbench")
+    assert workbench.status_code == 200
+    assert workbench.json()["findings"][0]["project_evidence"]
+    assert workbench.json()["findings"][0]["regulation_evidence"]
+    pdf_report = client.get(f"/api/v1/check-runs/{run['id']}/reports/pdf")
+    xlsx_report = client.get(f"/api/v1/check-runs/{run['id']}/reports/xlsx")
+    assert pdf_report.content.startswith(b"%PDF")
+    assert xlsx_report.content.startswith(b"PK")
 
     fact_two = client.post(
         f"/api/v1/projects/{project['id']}/facts",

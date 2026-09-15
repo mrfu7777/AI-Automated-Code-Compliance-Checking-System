@@ -2,6 +2,7 @@ import asyncio
 from types import SimpleNamespace
 from uuid import UUID
 
+import numpy as np
 from PIL import Image
 from sqlalchemy import func, select
 
@@ -9,6 +10,31 @@ from app.db.models import Clause, DocumentPage, Evidence, Job
 from app.services.pdf_extraction import PdfiumRegulationExtractor
 from app.services.regulation_parser import ExtractedPage, TextLine
 from app.tasks import regulation_processing
+
+
+def test_ocr_accepts_numpy_array_results_without_boolean_coercion(m1_environment) -> None:  # type: ignore[no-untyped-def]
+    _client, storage, _dispatcher, _session_factory = m1_environment
+    output = SimpleNamespace(
+        boxes=np.array([[[0, 0], [100, 0], [100, 20], [0, 20]]]),
+        txts=np.array(["安全出口"]),
+        scores=np.array([0.91]),
+    )
+
+    class ArrayOcr:
+        def __call__(self, _image: bytes):  # type: ignore[no-untyped-def]
+            return output
+
+    extractor = PdfiumRegulationExtractor(storage, ocr=ArrayOcr())  # type: ignore[arg-type]
+    lines = extractor._ocr_lines(b"png", 200, 100, 400, 200)
+    assert lines[0].text == "安全出口"
+    assert lines[0].confidence == 0.91
+    assert lines[0].bbox == {
+        "x0": 0.0,
+        "y0": 90.0,
+        "x1": 50.0,
+        "y1": 100.0,
+        "origin": "bottom-left",
+    }
 
 
 def test_regulation_worker_persists_pages_clauses_and_evidence(m1_environment, monkeypatch) -> None:  # type: ignore[no-untyped-def]

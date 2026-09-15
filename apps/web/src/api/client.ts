@@ -154,6 +154,9 @@ export interface CheckResult {
   severity: string;
   message: string;
   trace: { clause?: { number?: string; original_text?: string } };
+  workflow_status: string;
+  assignee_id: string | null;
+  reviewer_notes: string | null;
 }
 
 export interface CheckRun {
@@ -161,6 +164,45 @@ export interface CheckRun {
   status: string;
   input_hash: string;
   results: CheckResult[];
+}
+
+export interface DrawingPage {
+  id: string;
+  file_version_id: string;
+  page_number: number;
+  width: number;
+  height: number;
+  extraction_method: string;
+  average_confidence: number | null;
+  image_url: string | null;
+}
+
+export interface WorkbenchEvidence {
+  id: string;
+  kind: string;
+  file_version_id: string | null;
+  location: Record<string, unknown>;
+  excerpt: string | null;
+  image_url: string | null;
+}
+
+export interface WorkbenchFinding {
+  result_id: string;
+  rule_id: string;
+  status: string;
+  severity: string;
+  message: string;
+  workflow_status: string;
+  assignee_id: string | null;
+  reviewer_notes: string | null;
+  trace: { clause?: { number?: string; original_text?: string; page_number?: number } };
+  project_evidence: WorkbenchEvidence[];
+  regulation_evidence: WorkbenchEvidence[];
+}
+
+export interface Workbench {
+  run_id: string;
+  findings: WorkbenchFinding[];
 }
 
 const API_BASE_URL =
@@ -332,6 +374,64 @@ export function startProjectExtraction(
   });
 }
 
+export function startDrawingExtraction(
+  projectId: string,
+  fileVersionId: string,
+): Promise<{ job: Job }> {
+  return request<{ job: Job }>(`/projects/${projectId}/drawing-extractions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ file_version_id: fileVersionId }),
+  });
+}
+
+export function listDrawingPages(projectId: string, fileVersionId: string): Promise<DrawingPage[]> {
+  return request<DrawingPage[]>(`/projects/${projectId}/drawings/${fileVersionId}/pages`);
+}
+
+export function createDrawingPath(
+  projectId: string,
+  fileVersionId: string,
+  pageNumber: number,
+  points: { x: number; y: number }[],
+  pixelsPerMeter: number,
+): Promise<{ candidate: FactCandidate }> {
+  return request<{ candidate: FactCandidate }>(`/projects/${projectId}/drawing-annotations`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      file_version_id: fileVersionId,
+      page_number: pageNumber,
+      annotation_kind: "path",
+      fact_key: "egress.travel_distance_m",
+      label: "Architect-measured evacuation path",
+      points,
+      pixels_per_meter: pixelsPerMeter,
+    }),
+  });
+}
+
+export function createDrawingAnnotation(
+  projectId: string,
+  payload: {
+    file_version_id: string;
+    page_number: number;
+    annotation_kind: "object" | "dimension" | "scale";
+    fact_key: string;
+    value: unknown;
+    unit: string | null;
+    label: string;
+    bbox: Record<string, number> | null;
+    corrects_fact_id: string | null;
+  },
+): Promise<{ candidate: FactCandidate }> {
+  return request<{ candidate: FactCandidate }>(`/projects/${projectId}/drawing-annotations`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
 export function listFactCandidates(projectId: string): Promise<FactCandidate[]> {
   return request<FactCandidate[]>(`/projects/${projectId}/fact-candidates`);
 }
@@ -370,6 +470,26 @@ export function createCheckRun(projectId: string, packId: string): Promise<{ run
 
 export function getCheckRun(runId: string): Promise<CheckRun> {
   return request<CheckRun>(`/check-runs/${runId}`);
+}
+
+export function getWorkbench(runId: string): Promise<Workbench> {
+  return request<Workbench>(`/check-runs/${runId}/workbench`);
+}
+
+export function updateFinding(
+  resultId: string,
+  workflowStatus: string,
+  reviewerNotes: string,
+): Promise<CheckResult> {
+  return request<CheckResult>(`/check-results/${resultId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ workflow_status: workflowStatus, reviewer_notes: reviewerNotes }),
+  });
+}
+
+export function openReport(runId: string, format: "pdf" | "xlsx"): void {
+  window.open(`${API_BASE_URL}/check-runs/${runId}/reports/${format}`, "_blank", "noopener,noreferrer");
 }
 
 export function getJob(jobId: string, signal?: AbortSignal): Promise<Job> {

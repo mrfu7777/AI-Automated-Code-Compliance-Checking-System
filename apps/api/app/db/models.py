@@ -326,6 +326,9 @@ class CheckResult(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     regulation_evidence_ids: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     project_evidence_ids: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     trace: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    workflow_status: Mapped[str] = mapped_column(String(64), nullable=False, default="open")
+    assignee_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"), index=True)
+    reviewer_notes: Mapped[str | None] = mapped_column(Text)
 
     __table_args__ = (
         UniqueConstraint("check_run_id", "rule_id", name="uq_check_results_run_rule"),

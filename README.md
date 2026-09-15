@@ -258,6 +258,26 @@ The most important safety metric is not overall accuracy. It is the number of kn
 - FastAPI v1 API and Celery worker foundation completed
 - PostgreSQL domain schema and initial Alembic migration completed
 - Redis, MinIO, and Docker Compose development stack defined
+- M1 immutable files and persisted background-job lifecycle completed
+- M2 searchable/scanned PDF regulation digitization and clause review completed
+- M3 reviewed rule packs, deterministic checks, immutable snapshots, and traceable results completed
+- M4 PDF/DOCX/XLSX/IFC project fact extraction and architect confirmation completed
+- M5 PDF drawing evidence pipeline, calibrated paths, three-column review workbench, finding workflow,
+  twenty-five rule templates, and PDF/XLSX reports completed
+
+## M5 Quick Start
+
+1. Upload a project drawing as a PDF and choose **Extract drawing**.
+2. Review positioned title, scale, object, count, and dimension candidates.
+3. Verify only the candidates confirmed by an architect; rejected and conflicting candidates remain
+   outside check snapshots.
+4. Optionally add a calibrated evacuation path measurement from the drawing viewer.
+5. Run a published rule pack and open the three-column findings, project-evidence, and
+   regulation-basis workbench.
+6. Update finding workflow state and export the same evidence set as JSON, PDF, or XLSX.
+
+The M5 API version is `0.6.0`. See [the M5 release notes](docs/releases/m5.md) for delivered scope,
+continuity decisions, safety boundaries, and verification.
 - Backend and frontend quality gates running in GitHub Actions
 - M1 project creation and tenant-scoped project access completed
 - Streaming PDF, DOCX, XLSX, and IFC upload with a configurable 150 MB limit completed

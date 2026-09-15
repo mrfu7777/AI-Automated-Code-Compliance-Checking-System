@@ -129,6 +129,9 @@ class CheckResultResponse(ApiModel):
     regulation_evidence_ids: list[str]
     project_evidence_ids: list[str]
     trace: dict[str, Any]
+    workflow_status: str
+    assignee_id: UUID | None
+    reviewer_notes: str | None
 
 
 class CheckRunResponse(ApiModel):

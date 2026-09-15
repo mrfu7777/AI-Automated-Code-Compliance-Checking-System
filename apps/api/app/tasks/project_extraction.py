@@ -1,15 +1,14 @@
 from __future__ import annotations
 
 import asyncio
-import json
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import Evidence, FileVersion, Job, ProjectFact
+from app.db.models import FileVersion, Job
 from app.db.session import async_session_factory, engine
+from app.services.fact_candidates import CandidateWrite, persist_fact_candidates
 from app.services.job_runtime import run_persisted_job
 from app.services.project_extraction import EXTRACTOR_VERSION, ProjectDocumentExtractor
 from app.services.storage import get_object_storage
@@ -38,58 +37,16 @@ async def extract_project_facts(session: AsyncSession, job: Job) -> dict[str, An
         "xlsx": "spreadsheet_range",
         "ifc": "ifc_object",
     }[document_kind]
-    created_ids: list[str] = []
-    conflicts = 0
-    for candidate in candidates:
-        scope = json.dumps(candidate.scope_data, sort_keys=True, separators=(",", ":"))
-        existing = list(
-            await session.scalars(
-                select(ProjectFact).where(
-                    ProjectFact.project_id == job.project_id,
-                    ProjectFact.key == candidate.key,
-                    ProjectFact.verification_status.in_(["candidate", "conflicting", "verified"]),
-                )
-            )
-        )
-        different = [
-            fact
-            for fact in existing
-            if json.dumps(fact.scope_data, sort_keys=True, separators=(",", ":")) == scope
-            and (fact.value != candidate.value or fact.unit != candidate.unit)
-        ]
-        candidate_status = "conflicting" if different else "candidate"
-        if different:
-            conflicts += 1
-            for fact in different:
-                if fact.verification_status == "candidate":
-                    fact.verification_status = "conflicting"
-        fact = ProjectFact(
-            project_id=job.project_id,
-            key=candidate.key,
-            value=candidate.value,
-            unit=candidate.unit,
-            scope_data=candidate.scope_data,
-            source=source,
-            verification_status=candidate_status,
-            confidence=candidate.confidence,
-            extractor_version=EXTRACTOR_VERSION,
-        )
-        session.add(fact)
-        await session.flush()
-        session.add(
-            Evidence(
-                organization_id=job.organization_id,
-                project_fact_id=fact.id,
-                file_version_id=file_version.id,
-                kind=evidence_kind,
-                location={
-                    **candidate.location,
-                    "extractor_version": EXTRACTOR_VERSION,
-                },
-                excerpt=candidate.excerpt,
-            )
-        )
-        created_ids.append(str(fact.id))
+    created_ids, conflicts = await persist_fact_candidates(
+        session,
+        organization_id=job.organization_id,
+        project_id=job.project_id,
+        file_version_id=file_version.id,
+        candidates=(CandidateWrite(**candidate.__dict__) for candidate in candidates),
+        source=source,
+        evidence_kind=evidence_kind,
+        extractor_version=EXTRACTOR_VERSION,
+    )
     job.progress = 0.95
     await session.flush()
     return {
