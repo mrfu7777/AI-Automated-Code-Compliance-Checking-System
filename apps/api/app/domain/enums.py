@@ -14,6 +14,7 @@ class VerificationStatus(StrEnum):
     VERIFIED = "verified"
     CONFLICTING = "conflicting"
     REJECTED = "rejected"
+    STALE = "stale"
 
 
 class EvidenceKind(StrEnum):

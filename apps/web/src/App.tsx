@@ -3,17 +3,20 @@ import { FormEvent, MouseEvent as ReactMouseEvent, useCallback, useEffect, useSt
 import {
   createProject,
   createCheckRun,
+  createIncrementalCheckRun,
   createDrawingPath,
   createDrawingAnnotation,
   createManualFact,
   createRuleFromTemplate,
   createRulePack,
+  compareStandardVersions,
   Clause,
   decideFactCandidate,
   FactCandidate,
   getHealth,
   getJob,
   getCheckRun,
+  getCheckComparison,
   getWorkbench,
   Job,
   ingestRegulation,
@@ -26,15 +29,19 @@ import {
   listFactCandidates,
   listDrawingPages,
   listRulePacks,
+  listRuleConflicts,
+  listStandardRecommendations,
   listRules,
   listRuleTemplates,
   openDownload,
+  openComparisonReport,
   openReport,
   Project,
   ProjectFile,
   publishVersion,
   publishRulePack,
   retryJob,
+  resolveRuleConflict,
   Standard,
   startProjectExtraction,
   startDrawingExtraction,
@@ -43,6 +50,10 @@ import {
   RulePack,
   RuleTemplate,
   CheckRun,
+  CheckComparison,
+  RuleConflict,
+  StandardRecommendation,
+  StandardVersionComparison,
   reviewRule,
   updateClause,
   updateFinding,
@@ -71,6 +82,9 @@ function App() {
   const [purpose, setPurpose] = useState("project_document");
   const [regulations, setRegulations] = useState<Standard[]>([]);
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
+  const [compareFromVersionId, setCompareFromVersionId] = useState("");
+  const [compareToVersionId, setCompareToVersionId] = useState("");
+  const [versionComparison, setVersionComparison] = useState<StandardVersionComparison | null>(null);
   const [clauses, setClauses] = useState<Clause[]>([]);
   const [query, setQuery] = useState("");
   const [editingClause, setEditingClause] = useState<Clause | null>(null);
@@ -79,6 +93,7 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [rulePacks, setRulePacks] = useState<RulePack[]>([]);
   const [selectedPackId, setSelectedPackId] = useState<string | null>(null);
+  const [reviewPackIds, setReviewPackIds] = useState<string[]>([]);
   const [rules, setRules] = useState<Rule[]>([]);
   const [templates, setTemplates] = useState<RuleTemplate[]>([]);
   const [facts, setFacts] = useState<ProjectFact[]>([]);
@@ -87,6 +102,10 @@ function App() {
   const [factValue, setFactValue] = useState("1.1");
   const [factUnit, setFactUnit] = useState("m");
   const [checkRun, setCheckRun] = useState<CheckRun | null>(null);
+  const [baselineRunId, setBaselineRunId] = useState<string | null>(null);
+  const [comparison, setComparison] = useState<CheckComparison | null>(null);
+  const [recommendations, setRecommendations] = useState<StandardRecommendation[]>([]);
+  const [conflicts, setConflicts] = useState<RuleConflict[]>([]);
   const [selectedClauseId, setSelectedClauseId] = useState<string>("");
   const [drawingVersionId, setDrawingVersionId] = useState<string | null>(null);
   const [drawingPages, setDrawingPages] = useState<DrawingPage[]>([]);
@@ -127,6 +146,7 @@ function App() {
         if (standards[0]?.versions[0]) setSelectedVersionId(standards[0].versions[0].id);
         setRulePacks(packs);
         setSelectedPackId(packs[0]?.id ?? null);
+        setReviewPackIds(packs[0]?.id ? [packs[0].id] : []);
         setTemplates(availableTemplates);
       })
       .catch((requestError: unknown) => {
@@ -146,10 +166,15 @@ function App() {
 
   useEffect(() => {
     if (!selectedProjectId) return;
-    void Promise.all([listFacts(selectedProjectId), listFactCandidates(selectedProjectId)])
-      .then(([verifiedFacts, candidates]) => {
+    void Promise.all([
+      listFacts(selectedProjectId),
+      listFactCandidates(selectedProjectId),
+      listStandardRecommendations(selectedProjectId),
+    ])
+      .then(([verifiedFacts, candidates, suggestedStandards]) => {
         setFacts(verifiedFacts);
         setFactCandidates(candidates);
+        setRecommendations(suggestedStandards);
       })
       .catch((requestError: unknown) => {
         setError(requestError instanceof Error ? requestError.message : "Unable to load facts");
@@ -205,7 +230,13 @@ function App() {
           if (updated.status === "succeeded" && updated.job_type === "check.run") {
             const runId = updated.output_data?.check_run_id;
             if (typeof runId === "string") {
-              void getCheckRun(runId).then(setCheckRun);
+              void getCheckRun(runId).then((completedRun) => {
+                setCheckRun(completedRun);
+                void listRuleConflicts(completedRun.review_package_id).then(setConflicts);
+                if (completedRun.baseline_run_id) {
+                  void getCheckComparison(runId, completedRun.baseline_run_id).then(setComparison);
+                }
+              });
               void getWorkbench(runId).then((value) => {
                 setWorkbench(value);
                 setSelectedFindingId(value.findings[0]?.result_id ?? null);
@@ -543,14 +574,56 @@ function App() {
   }
 
   async function handleRunCheck() {
-    if (!selectedProjectId || !selectedPackId) return;
+    if (!selectedProjectId || reviewPackIds.length === 0) return;
     try {
-      const created = await createCheckRun(selectedProjectId, selectedPackId);
+      const created = await createCheckRun(selectedProjectId, reviewPackIds);
       setCheckRun(created.run);
+      setBaselineRunId(created.run.id);
+      setComparison(null);
+      setConflicts([]);
       setWorkbench(null);
       setJob(created.job);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Unable to run check");
+    }
+  }
+
+  async function handleIncrementalCheck() {
+    if (!baselineRunId) return;
+    try {
+      const created = await createIncrementalCheckRun(baselineRunId);
+      setCheckRun(created.run);
+      setComparison(null);
+      setWorkbench(null);
+      setJob(created.job);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Unable to run incremental check");
+    }
+  }
+
+  async function handleVersionComparison() {
+    if (!compareFromVersionId || !compareToVersionId) return;
+    try {
+      setVersionComparison(await compareStandardVersions(compareFromVersionId, compareToVersionId));
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Unable to compare editions");
+    }
+  }
+
+  async function handleConflictResolution(conflict: RuleConflict, ruleId: string) {
+    if (!checkRun) return;
+    const note = window.prompt("Reason for selecting this rule", "Architect applicability decision");
+    if (!note) return;
+    try {
+      const resolved = await resolveRuleConflict(
+        checkRun.review_package_id,
+        conflict.id,
+        ruleId,
+        note,
+      );
+      setConflicts((current) => current.map((item) => item.id === resolved.id ? resolved : item));
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Unable to resolve conflict");
     }
   }
 
@@ -573,11 +646,11 @@ function App() {
       </nav>
 
       <section className="hero hero--compact">
-        <p className="eyebrow">M5 · Drawing evidence workbench</p>
-        <h1>Review each finding beside its drawing and regulation evidence.</h1>
+        <p className="eyebrow">M6 · Multi-code incremental review</p>
+        <h1>Freeze exact code editions, then recheck only what changed.</h1>
         <p className="hero-copy">
-          Extract positioned drawing candidates, calibrate measured paths, confirm facts with an
-          architect, and navigate from a finding to both sides of its evidence chain.
+          Combine published rule packs, expose cross-code conflicts for human resolution, and
+          compare an incremental result with its immutable baseline.
         </p>
       </section>
 
@@ -679,10 +752,64 @@ function App() {
               </div>
             ))}
           </div>
-          <button disabled={!selectedProjectId || !selectedPackId} onClick={() => void handleRunCheck()} type="button">
+          <button disabled={!selectedProjectId || reviewPackIds.length === 0} onClick={() => void handleRunCheck()} type="button">
             Run compliance check
           </button>
+          <div className="file-list" aria-label="Review package rule packs">
+            {rulePacks.filter((pack) => pack.lifecycle_status === "published").map((pack) => (
+              <label className="version-row" key={pack.id}>
+                <input
+                  checked={reviewPackIds.includes(pack.id)}
+                  onChange={(event) => setReviewPackIds((current) => event.target.checked
+                    ? [...new Set([...current, pack.id])]
+                    : current.filter((id) => id !== pack.id))}
+                  type="checkbox"
+                />
+                <span>{pack.authority_level} · {pack.name} {pack.semantic_version}</span>
+              </label>
+            ))}
+          </div>
+          <button disabled={!baselineRunId || checkRun?.status !== "completed"} onClick={() => void handleIncrementalCheck()} type="button">
+            Run incremental recheck
+          </button>
           {checkRun && <p className="empty">Run {checkRun.status} · {checkRun.input_hash.slice(0, 12)}</p>}
+          {checkRun?.run_mode === "incremental" && (
+            <p className="empty">
+              Changed facts: {checkRun.changed_fact_keys.join(", ") || "none"} · re-executed {checkRun.affected_rule_ids.length} rules
+            </p>
+          )}
+          {comparison && (
+            <div className="file-card">
+              <p className="empty">
+                Comparison: {Object.entries(comparison.summary).map(([key, value]) => `${key} ${value}`).join(" · ")}
+              </p>
+              <button
+                className="secondary-button"
+                onClick={() => openComparisonReport(comparison.run_id, comparison.baseline_run_id)}
+                type="button"
+              >Download comparison JSON</button>
+            </div>
+          )}
+          {conflicts.map((conflict) => (
+            <div className="file-card" key={conflict.id}>
+              <p className="empty">
+                Conflict: {conflict.rule_codes.join(" / ")} · {conflict.resolution ? "resolved" : "human decision required"}
+              </p>
+              {!conflict.resolution && conflict.rule_ids.map((ruleId, index) => (
+                <button
+                  className="secondary-button"
+                  key={ruleId}
+                  onClick={() => void handleConflictResolution(conflict, ruleId)}
+                  type="button"
+                >Use {conflict.authority_levels[index]} · {conflict.rule_codes[index]}</button>
+              ))}
+            </div>
+          ))}
+          {recommendations.slice(0, 3).map((item) => (
+            <p className="empty" key={item.standard_version_id}>
+              {item.recommended ? "Recommended" : "Confirm applicability"}: {item.standard_code} {item.edition}
+            </p>
+          ))}
           {checkRun && !workbench && <p className="empty">The evidence workbench will load when the background check completes.</p>}
         </div>
       </section>
@@ -947,6 +1074,32 @@ function App() {
             </article>
           ))}
           {regulations.length === 0 && <p className="empty">No regulation version yet.</p>}
+          <div className="stack" aria-label="Standard edition comparison">
+            <label>Earlier edition
+              <select value={compareFromVersionId} onChange={(event) => setCompareFromVersionId(event.target.value)}>
+                <option value="">Select an edition</option>
+                {regulations.flatMap((standard) => standard.versions.map((version) => (
+                  <option key={`from-${version.id}`} value={version.id}>{standard.code} · {version.edition}</option>
+                )))}
+              </select>
+            </label>
+            <label>Later edition
+              <select value={compareToVersionId} onChange={(event) => setCompareToVersionId(event.target.value)}>
+                <option value="">Select an edition</option>
+                {regulations.flatMap((standard) => standard.versions.map((version) => (
+                  <option key={`to-${version.id}`} value={version.id}>{standard.code} · {version.edition}</option>
+                )))}
+              </select>
+            </label>
+            <button disabled={!compareFromVersionId || !compareToVersionId} onClick={() => void handleVersionComparison()} type="button">
+              Compare editions
+            </button>
+            {versionComparison && (
+              <p className="empty">
+                Clause changes: {Object.entries(versionComparison.summary).map(([key, value]) => `${key} ${value}`).join(" · ")}
+              </p>
+            )}
+          </div>
         </div>
 
         <div className="panel clause-review">

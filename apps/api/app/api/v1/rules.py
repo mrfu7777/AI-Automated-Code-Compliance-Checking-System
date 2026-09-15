@@ -322,6 +322,7 @@ async def clone_rule_pack(
         standard_version_id=source.standard_version_id,
         name=source.name,
         semantic_version=payload.semantic_version,
+        authority_level=source.authority_level,
         lifecycle_status="draft",
         content_hash="",
     )

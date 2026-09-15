@@ -110,6 +110,7 @@ export interface RulePack {
   semantic_version: string;
   lifecycle_status: string;
   content_hash: string;
+  authority_level: "national" | "local" | "enterprise" | "project";
 }
 
 export interface Rule {
@@ -161,9 +162,66 @@ export interface CheckResult {
 
 export interface CheckRun {
   id: string;
+  review_package_id: string;
   status: string;
   input_hash: string;
+  run_mode: "full" | "incremental";
+  baseline_run_id: string | null;
+  changed_fact_keys: string[];
+  affected_rule_ids: string[];
+  conflict_resolution_snapshot: Record<string, unknown>;
   results: CheckResult[];
+}
+
+export interface ChangeImpact {
+  baseline_run_id: string;
+  changed_fact_keys: string[];
+  affected_rule_ids: string[];
+  unaffected_rule_ids: string[];
+}
+
+export interface CheckComparison {
+  baseline_run_id: string;
+  run_id: string;
+  summary: Record<string, number>;
+  items: {
+    rule_code: string;
+    title: string;
+    change: string;
+    before_status: string | null;
+    after_status: string | null;
+  }[];
+}
+
+export interface StandardRecommendation {
+  standard_version_id: string;
+  standard_code: string;
+  edition: string;
+  recommended: boolean;
+  reasons: string[];
+  warnings: string[];
+}
+
+export interface StandardVersionComparison {
+  from_version_id: string;
+  to_version_id: string;
+  summary: Record<string, number>;
+  differences: {
+    clause_number: string;
+    change: "added" | "removed" | "modified" | "unchanged";
+    before_text: string | null;
+    after_text: string | null;
+  }[];
+}
+
+export interface RuleConflict {
+  id: string;
+  fact_key: string;
+  rule_ids: string[];
+  rule_codes: string[];
+  authority_levels: string[];
+  reason: string;
+  resolution: Record<string, unknown> | null;
 }
 
 export interface DrawingPage {
@@ -286,6 +344,15 @@ export function ingestRegulation(
 export function listClauses(versionId: string, query = ""): Promise<Clause[]> {
   const suffix = query ? `?query=${encodeURIComponent(query)}` : "";
   return request<Clause[]>(`/regulations/versions/${versionId}/clauses${suffix}`);
+}
+
+export function compareStandardVersions(
+  fromVersionId: string,
+  toVersionId: string,
+): Promise<StandardVersionComparison> {
+  return request<StandardVersionComparison>(
+    `/regulations/versions/${fromVersionId}/compare/${toVersionId}`,
+  );
 }
 
 export function updateClause(
@@ -460,12 +527,50 @@ export function createManualFact(
   });
 }
 
-export function createCheckRun(projectId: string, packId: string): Promise<{ run: CheckRun; job: Job }> {
+export function createCheckRun(projectId: string, packIds: string[]): Promise<{ run: CheckRun; job: Job }> {
   return request<{ run: CheckRun; job: Job }>("/check-runs", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ project_id: projectId, rule_pack_ids: [packId], name: "Pilot review" }),
+    body: JSON.stringify({ project_id: projectId, rule_pack_ids: packIds, name: "M6 review package" }),
   });
+}
+
+export function createIncrementalCheckRun(
+  baselineRunId: string,
+): Promise<{ run: CheckRun; job: Job; impact: ChangeImpact }> {
+  return request<{ run: CheckRun; job: Job; impact: ChangeImpact }>("/check-runs/incremental", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ baseline_run_id: baselineRunId }),
+  });
+}
+
+export function getCheckComparison(runId: string, baselineRunId: string): Promise<CheckComparison> {
+  return request<CheckComparison>(`/check-runs/${runId}/compare/${baselineRunId}`);
+}
+
+export function listStandardRecommendations(projectId: string): Promise<StandardRecommendation[]> {
+  return request<StandardRecommendation[]>(`/projects/${projectId}/standard-version-recommendations`);
+}
+
+export function listRuleConflicts(packageId: string): Promise<RuleConflict[]> {
+  return request<RuleConflict[]>(`/review-packages/${packageId}/conflicts`);
+}
+
+export function resolveRuleConflict(
+  packageId: string,
+  conflictId: string,
+  selectedRuleId: string,
+  note: string,
+): Promise<RuleConflict> {
+  return request<RuleConflict>(
+    `/review-packages/${packageId}/conflicts/${encodeURIComponent(conflictId)}`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ selected_rule_id: selectedRuleId, note }),
+    },
+  );
 }
 
 export function getCheckRun(runId: string): Promise<CheckRun> {
@@ -490,6 +595,14 @@ export function updateFinding(
 
 export function openReport(runId: string, format: "pdf" | "xlsx"): void {
   window.open(`${API_BASE_URL}/check-runs/${runId}/reports/${format}`, "_blank", "noopener,noreferrer");
+}
+
+export function openComparisonReport(runId: string, baselineRunId: string): void {
+  window.open(
+    `${API_BASE_URL}/check-runs/${runId}/comparison-report/${baselineRunId}`,
+    "_blank",
+    "noopener,noreferrer",
+  );
 }
 
 export function getJob(jobId: string, signal?: AbortSignal): Promise<Job> {

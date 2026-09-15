@@ -264,19 +264,21 @@ The most important safety metric is not overall accuracy. It is the number of kn
 - M4 PDF/DOCX/XLSX/IFC project fact extraction and architect confirmation completed
 - M5 PDF drawing evidence pipeline, calibrated paths, three-column review workbench, finding workflow,
   twenty-five rule templates, and PDF/XLSX reports completed
+- M6 exact multi-code review packages, authority markers, edition comparison, conflict escalation,
+  dependency impact analysis, incremental rechecks, and baseline comparison completed
 
-## M5 Quick Start
+## M6 Quick Start
 
-1. Upload a project drawing as a PDF and choose **Extract drawing**.
-2. Review positioned title, scale, object, count, and dimension candidates.
-3. Verify only the candidates confirmed by an architect; rejected and conflicting candidates remain
-   outside check snapshots.
-4. Optionally add a calibrated evacuation path measurement from the drawing viewer.
-5. Run a published rule pack and open the three-column findings, project-evidence, and
-   regulation-basis workbench.
-6. Update finding workflow state and export the same evidence set as JSON, PDF, or XLSX.
+1. Record project jurisdiction, design date, and building type, then review suggested editions.
+2. Select one or more published rule packs; their exact IDs, versions, hashes, and authority markers
+   are frozen in the review snapshot.
+3. Resolve deterministic cross-code conflicts explicitly; unresolved rules require human review.
+4. Upload a replacement version or verify corrected facts and inspect the baseline impact analysis.
+5. Run an incremental recheck. Only dependent rules execute; unaffected results are copied with a
+   trace back to their baseline result.
+6. Compare the new run with the immutable baseline and continue in the existing evidence workbench.
 
-The M5 API version is `0.6.0`. See [the M5 release notes](docs/releases/m5.md) for delivered scope,
+The M6 API version is `0.7.0`. See [the M6 release notes](docs/releases/m6.md) for delivered scope,
 continuity decisions, safety boundaries, and verification.
 - Backend and frontend quality gates running in GitHub Actions
 - M1 project creation and tenant-scoped project access completed

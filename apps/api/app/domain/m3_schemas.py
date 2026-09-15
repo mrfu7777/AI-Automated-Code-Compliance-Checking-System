@@ -22,6 +22,9 @@ class RulePackCreate(ApiModel):
     standard_version_id: UUID
     name: str = Field(min_length=1, max_length=255)
     semantic_version: str = Field(pattern=r"^\d+\.\d+\.\d+$", max_length=32)
+    authority_level: str = Field(
+        default="national", pattern="^(national|local|enterprise|project)$"
+    )
 
 
 class RulePackClone(ApiModel):
@@ -35,6 +38,7 @@ class RulePackResponse(ApiModel):
     semantic_version: str
     lifecycle_status: str
     content_hash: str
+    authority_level: str
     published_at: datetime | None
     published_by_id: UUID | None
     created_at: datetime
@@ -142,6 +146,11 @@ class CheckRunResponse(ApiModel):
     rule_pack_snapshot: list[dict[str, Any]]
     engine_version: str
     input_hash: str
+    run_mode: str
+    baseline_run_id: UUID | None
+    changed_fact_keys: list[str]
+    affected_rule_ids: list[str]
+    conflict_resolution_snapshot: dict[str, Any]
     started_at: datetime | None
     completed_at: datetime | None
     created_at: datetime

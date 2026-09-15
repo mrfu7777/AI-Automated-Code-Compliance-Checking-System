@@ -3,7 +3,7 @@
   "info": {
     "title": "AI Automated Code Compliance Checking System",
     "description": "Evidence-backed API foundation for automated building code compliance review.",
-    "version": "0.6.0"
+    "version": "0.7.0"
   },
   "paths": {
     "/api/v1/projects": {
@@ -783,6 +783,75 @@
                     "$ref": "#/components/schemas/ClauseResponse"
                   },
                   "title": "Response List Clauses Api V1 Regulations Versions  Version Id  Clauses Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/regulations/versions/{from_version_id}/compare/{to_version_id}": {
+      "get": {
+        "tags": [
+          "regulations"
+        ],
+        "summary": "Compare Standard Versions",
+        "operationId": "compare_standard_versions_api_v1_regulations_versions__from_version_id__compare__to_version_id__get",
+        "parameters": [
+          {
+            "name": "from_version_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "From Version Id"
+            }
+          },
+          {
+            "name": "to_version_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "To Version Id"
+            }
+          },
+          {
+            "name": "X-User-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardVersionComparison"
                 }
               }
             }
@@ -1908,6 +1977,460 @@
         }
       }
     },
+    "/api/v1/check-runs/incremental": {
+      "post": {
+        "tags": [
+          "checks"
+        ],
+        "summary": "Create Incremental Check Run",
+        "operationId": "create_incremental_check_run_api_v1_check_runs_incremental_post",
+        "parameters": [
+          {
+            "name": "X-User-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IncrementalCheckRunCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncrementalCreated"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/check-runs/{run_id}/impact": {
+      "get": {
+        "tags": [
+          "checks"
+        ],
+        "summary": "Get Change Impact",
+        "operationId": "get_change_impact_api_v1_check_runs__run_id__impact_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "X-User-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeImpactResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/review-packages/{package_id}/dependency-graph": {
+      "get": {
+        "tags": [
+          "checks"
+        ],
+        "summary": "Get Dependency Graph",
+        "operationId": "get_dependency_graph_api_v1_review_packages__package_id__dependency_graph_get",
+        "parameters": [
+          {
+            "name": "package_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Package Id"
+            }
+          },
+          {
+            "name": "X-User-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DependencyGraphResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/review-packages/{package_id}/conflicts": {
+      "get": {
+        "tags": [
+          "checks"
+        ],
+        "summary": "List Conflicts",
+        "operationId": "list_conflicts_api_v1_review_packages__package_id__conflicts_get",
+        "parameters": [
+          {
+            "name": "package_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Package Id"
+            }
+          },
+          {
+            "name": "X-User-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ConflictResponse"
+                  },
+                  "title": "Response List Conflicts Api V1 Review Packages  Package Id  Conflicts Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/review-packages/{package_id}/conflicts/{conflict_id}": {
+      "put": {
+        "tags": [
+          "checks"
+        ],
+        "summary": "Resolve Conflict",
+        "operationId": "resolve_conflict_api_v1_review_packages__package_id__conflicts__conflict_id__put",
+        "parameters": [
+          {
+            "name": "package_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Package Id"
+            }
+          },
+          {
+            "name": "conflict_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Conflict Id"
+            }
+          },
+          {
+            "name": "X-User-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConflictResolution"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/check-runs/{run_id}/compare/{baseline_run_id}": {
+      "get": {
+        "tags": [
+          "checks"
+        ],
+        "summary": "Compare Check Runs",
+        "operationId": "compare_check_runs_api_v1_check_runs__run_id__compare__baseline_run_id__get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "baseline_run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Baseline Run Id"
+            }
+          },
+          {
+            "name": "X-User-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckComparisonResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/check-runs/{run_id}/comparison-report/{baseline_run_id}": {
+      "get": {
+        "tags": [
+          "checks"
+        ],
+        "summary": "Export Check Comparison",
+        "operationId": "export_check_comparison_api_v1_check_runs__run_id__comparison_report__baseline_run_id__get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "baseline_run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Baseline Run Id"
+            }
+          },
+          {
+            "name": "X-User-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/check-runs/{run_id}": {
       "get": {
         "tags": [
@@ -2013,6 +2536,69 @@
                     "$ref": "#/components/schemas/CheckRunResponse"
                   },
                   "title": "Response List Check Runs Api V1 Projects  Project Id  Check Runs Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/standard-version-recommendations": {
+      "get": {
+        "tags": [
+          "checks"
+        ],
+        "summary": "Recommend Standard Versions",
+        "operationId": "recommend_standard_versions_api_v1_projects__project_id__standard_version_recommendations_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "X-User-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StandardRecommendation"
+                  },
+                  "title": "Response Recommend Standard Versions Api V1 Projects  Project Id  Standard Version Recommendations Get"
                 }
               }
             }
@@ -2880,6 +3466,130 @@
         ],
         "title": "Body_upload_project_file_api_v1_projects__project_id__files_post"
       },
+      "ChangeImpactResponse": {
+        "properties": {
+          "baseline_run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Baseline Run Id"
+          },
+          "changed_fact_keys": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Changed Fact Keys"
+          },
+          "affected_rule_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Affected Rule Ids"
+          },
+          "unaffected_rule_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Unaffected Rule Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "baseline_run_id",
+          "changed_fact_keys",
+          "affected_rule_ids",
+          "unaffected_rule_ids"
+        ],
+        "title": "ChangeImpactResponse"
+      },
+      "CheckComparisonItem": {
+        "properties": {
+          "rule_code": {
+            "type": "string",
+            "title": "Rule Code"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "change": {
+            "type": "string",
+            "title": "Change"
+          },
+          "before_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before Status"
+          },
+          "after_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After Status"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "rule_code",
+          "title",
+          "change",
+          "before_status",
+          "after_status"
+        ],
+        "title": "CheckComparisonItem"
+      },
+      "CheckComparisonResponse": {
+        "properties": {
+          "baseline_run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Baseline Run Id"
+          },
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id"
+          },
+          "summary": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Summary"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CheckComparisonItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "baseline_run_id",
+          "run_id",
+          "summary",
+          "items"
+        ],
+        "title": "CheckComparisonResponse"
+      },
       "CheckResultResponse": {
         "properties": {
           "id": {
@@ -3062,6 +3772,41 @@
             "type": "string",
             "title": "Input Hash"
           },
+          "run_mode": {
+            "type": "string",
+            "title": "Run Mode"
+          },
+          "baseline_run_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Run Id"
+          },
+          "changed_fact_keys": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Changed Fact Keys"
+          },
+          "affected_rule_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Affected Rule Ids"
+          },
+          "conflict_resolution_snapshot": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Conflict Resolution Snapshot"
+          },
           "started_at": {
             "anyOf": [
               {
@@ -3114,6 +3859,11 @@
           "rule_pack_snapshot",
           "engine_version",
           "input_hash",
+          "run_mode",
+          "baseline_run_id",
+          "changed_fact_keys",
+          "affected_rule_ids",
+          "conflict_resolution_snapshot",
           "started_at",
           "completed_at",
           "created_at",
@@ -3131,6 +3881,75 @@
           "not_applicable"
         ],
         "title": "CheckStatus"
+      },
+      "ClauseDifference": {
+        "properties": {
+          "clause_number": {
+            "type": "string",
+            "title": "Clause Number"
+          },
+          "change": {
+            "type": "string",
+            "title": "Change"
+          },
+          "before_clause_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before Clause Id"
+          },
+          "after_clause_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After Clause Id"
+          },
+          "before_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before Text"
+          },
+          "after_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After Text"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "clause_number",
+          "change",
+          "before_clause_id",
+          "after_clause_id",
+          "before_text",
+          "after_text"
+        ],
+        "title": "ClauseDifference"
       },
       "ClauseMerge": {
         "properties": {
@@ -3442,6 +4261,88 @@
         ],
         "title": "ClauseUpdate"
       },
+      "ConflictResolution": {
+        "properties": {
+          "selected_rule_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Selected Rule Id"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Note"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "selected_rule_id",
+          "note"
+        ],
+        "title": "ConflictResolution"
+      },
+      "ConflictResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "fact_key": {
+            "type": "string",
+            "title": "Fact Key"
+          },
+          "rule_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Rule Ids"
+          },
+          "rule_codes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Rule Codes"
+          },
+          "authority_levels": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Authority Levels"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "resolution": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "fact_key",
+          "rule_ids",
+          "rule_codes",
+          "authority_levels",
+          "reason"
+        ],
+        "title": "ConflictResponse"
+      },
       "ContractSummary": {
         "properties": {
           "check_statuses": {
@@ -3473,6 +4374,43 @@
           "job_statuses"
         ],
         "title": "ContractSummary"
+      },
+      "DependencyGraphResponse": {
+        "properties": {
+          "review_package_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Review Package Id"
+          },
+          "nodes": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Nodes"
+          },
+          "edges": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Edges"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "review_package_id",
+          "nodes",
+          "edges"
+        ],
+        "title": "DependencyGraphResponse"
       },
       "DownloadResponse": {
         "properties": {
@@ -4098,6 +5036,49 @@
           "api_version"
         ],
         "title": "HealthResponse"
+      },
+      "IncrementalCheckRunCreate": {
+        "properties": {
+          "baseline_run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Baseline Run Id"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Name",
+            "default": "Incremental compliance review"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "baseline_run_id"
+        ],
+        "title": "IncrementalCheckRunCreate"
+      },
+      "IncrementalCreated": {
+        "properties": {
+          "run": {
+            "$ref": "#/components/schemas/CheckRunResponse"
+          },
+          "job": {
+            "$ref": "#/components/schemas/JobResponse"
+          },
+          "impact": {
+            "$ref": "#/components/schemas/ChangeImpactResponse"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "run",
+          "job",
+          "impact"
+        ],
+        "title": "IncrementalCreated"
       },
       "JobResponse": {
         "properties": {
@@ -4898,6 +5879,12 @@
             "maxLength": 32,
             "pattern": "^\\d+\\.\\d+\\.\\d+$",
             "title": "Semantic Version"
+          },
+          "authority_level": {
+            "type": "string",
+            "pattern": "^(national|local|enterprise|project)$",
+            "title": "Authority Level",
+            "default": "national"
           }
         },
         "additionalProperties": false,
@@ -4936,6 +5923,10 @@
           "content_hash": {
             "type": "string",
             "title": "Content Hash"
+          },
+          "authority_level": {
+            "type": "string",
+            "title": "Authority Level"
           },
           "published_at": {
             "anyOf": [
@@ -4981,6 +5972,7 @@
           "semantic_version",
           "lifecycle_status",
           "content_hash",
+          "authority_level",
           "published_at",
           "published_by_id",
           "created_at",
@@ -5287,6 +6279,68 @@
         "type": "object",
         "title": "RuleUpdate"
       },
+      "StandardRecommendation": {
+        "properties": {
+          "standard_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Standard Id"
+          },
+          "standard_code": {
+            "type": "string",
+            "title": "Standard Code"
+          },
+          "standard_title": {
+            "type": "string",
+            "title": "Standard Title"
+          },
+          "standard_version_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Standard Version Id"
+          },
+          "edition": {
+            "type": "string",
+            "title": "Edition"
+          },
+          "jurisdiction": {
+            "type": "string",
+            "title": "Jurisdiction"
+          },
+          "recommended": {
+            "type": "boolean",
+            "title": "Recommended"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reasons"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "standard_id",
+          "standard_code",
+          "standard_title",
+          "standard_version_id",
+          "edition",
+          "jurisdiction",
+          "recommended",
+          "reasons",
+          "warnings"
+        ],
+        "title": "StandardRecommendation"
+      },
       "StandardResponse": {
         "properties": {
           "id": {
@@ -5323,6 +6377,43 @@
           "jurisdiction"
         ],
         "title": "StandardResponse"
+      },
+      "StandardVersionComparison": {
+        "properties": {
+          "from_version_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "From Version Id"
+          },
+          "to_version_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "To Version Id"
+          },
+          "summary": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Summary"
+          },
+          "differences": {
+            "items": {
+              "$ref": "#/components/schemas/ClauseDifference"
+            },
+            "type": "array",
+            "title": "Differences"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "from_version_id",
+          "to_version_id",
+          "summary",
+          "differences"
+        ],
+        "title": "StandardVersionComparison"
       },
       "StandardVersionResponse": {
         "properties": {

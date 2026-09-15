@@ -37,6 +37,10 @@ from app.domain.m2_schemas import (
     StandardResponse,
     StandardVersionResponse,
 )
+from app.domain.m6_schemas import (
+    ClauseDifference,
+    StandardVersionComparison,
+)
 from app.services.audit import record_audit_event
 from app.services.dispatch import JobDispatcher, dispatch_persisted_job, get_job_dispatcher
 from app.services.storage import ObjectStorage, get_object_storage
@@ -247,6 +251,73 @@ async def list_clauses(
             or_(Clause.clause_number.ilike(term), Clause.original_text.ilike(term))
         )
     return list(await session.scalars(statement.order_by(Clause.order_index)))
+
+
+@router.get(
+    "/versions/{from_version_id}/compare/{to_version_id}",
+    response_model=StandardVersionComparison,
+)
+async def compare_standard_versions(  # pragma: no cover - HTTP adapter
+    from_version_id: UUID,
+    to_version_id: UUID,
+    actor: Annotated[Actor, Depends(get_current_actor)],
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+) -> StandardVersionComparison:
+    before_version = await _owned_version(session, from_version_id, actor)
+    after_version = await _owned_version(session, to_version_id, actor)
+    if before_version.standard_id != after_version.standard_id:
+        raise ApplicationError(
+            "different_standards",
+            "Only two editions of the same standard can be compared",
+            status_code=409,
+        )
+    before_rows = list(
+        await session.scalars(
+            select(Clause).where(
+                Clause.standard_version_id == before_version.id,
+                Clause.lifecycle_status != "archived",
+            )
+        )
+    )
+    after_rows = list(
+        await session.scalars(
+            select(Clause).where(
+                Clause.standard_version_id == after_version.id,
+                Clause.lifecycle_status != "archived",
+            )
+        )
+    )
+    before = {item.clause_number: item for item in before_rows}
+    after = {item.clause_number: item for item in after_rows}
+    differences = []
+    summary: dict[str, int] = {}
+    for number in sorted(before.keys() | after.keys()):
+        old, new = before.get(number), after.get(number)
+        if old is None:
+            change = "added"
+        elif new is None:
+            change = "removed"
+        elif old.original_text != new.original_text or old.heading != new.heading:
+            change = "modified"
+        else:
+            change = "unchanged"
+        summary[change] = summary.get(change, 0) + 1
+        differences.append(
+            ClauseDifference(
+                clause_number=number,
+                change=change,
+                before_clause_id=old.id if old else None,
+                after_clause_id=new.id if new else None,
+                before_text=old.original_text if old else None,
+                after_text=new.original_text if new else None,
+            )
+        )
+    return StandardVersionComparison(
+        from_version_id=before_version.id,
+        to_version_id=after_version.id,
+        summary=summary,
+        differences=differences,
+    )
 
 
 async def _save_revision(session: AsyncSession, clause: Clause, actor: Actor, reason: str) -> None:

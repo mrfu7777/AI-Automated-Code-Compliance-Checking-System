@@ -208,6 +208,7 @@ class RulePack(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     semantic_version: Mapped[str] = mapped_column(String(32), nullable=False)
     lifecycle_status: Mapped[str] = mapped_column(String(64), nullable=False, default="draft")
     content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    authority_level: Mapped[str] = mapped_column(String(32), nullable=False, default="national")
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     published_by_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"))
 
@@ -284,6 +285,10 @@ class ReviewPackage(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     status: Mapped[str] = mapped_column(String(64), nullable=False, default="draft")
     project_snapshot_hash: Mapped[str | None] = mapped_column(String(64))
+    conflict_candidates: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSON, nullable=False, default=list
+    )
+    conflict_resolutions: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
 
 
 class ReviewPackageRulePack(Base):
@@ -310,6 +315,13 @@ class CheckRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     engine_version: Mapped[str] = mapped_column(String(64), nullable=False, default="m3.engine.v1")
     input_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    run_mode: Mapped[str] = mapped_column(String(32), nullable=False, default="full")
+    baseline_run_id: Mapped[UUID | None] = mapped_column(ForeignKey("check_runs.id"), index=True)
+    changed_fact_keys: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    affected_rule_ids: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    conflict_resolution_snapshot: Mapped[dict[str, Any]] = mapped_column(
+        JSON, nullable=False, default=dict
+    )
 
 
 class CheckResult(UUIDPrimaryKeyMixin, TimestampMixin, Base):

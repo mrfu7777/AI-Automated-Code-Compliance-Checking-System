@@ -8,13 +8,13 @@ from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import Actor, get_current_actor, get_request_id
 from app.core.config import get_settings
 from app.core.errors import ApplicationError
-from app.db.models import FileVersion, Job, Project, ProjectFile
+from app.db.models import Evidence, FileVersion, Job, Project, ProjectFact, ProjectFile
 from app.db.session import get_database_session
 from app.domain.enums import JobStatus
 from app.domain.m1_schemas import (
@@ -289,6 +289,29 @@ async def upload_project_file(
             uploaded_by_id=actor.user_id,
         )
         session.add(file_version)
+        invalidated_fact_ids: list[UUID] = []
+        if latest_version is not None:
+            old_version_ids = select(FileVersion.id).where(
+                FileVersion.project_file_id == project_file.id,
+                FileVersion.version_number < version_number,
+            )
+            invalidated_fact_ids = list(
+                await session.scalars(
+                    select(ProjectFact.id)
+                    .join(Evidence, Evidence.project_fact_id == ProjectFact.id)
+                    .where(
+                        Evidence.file_version_id.in_(old_version_ids),
+                        ProjectFact.verification_status == "verified",
+                    )
+                    .distinct()
+                )
+            )
+            if invalidated_fact_ids:
+                await session.execute(
+                    update(ProjectFact)
+                    .where(ProjectFact.id.in_(invalidated_fact_ids))
+                    .values(verification_status="stale")
+                )
         job = Job(
             organization_id=actor.organization_id,
             project_id=project_id,
@@ -309,7 +332,12 @@ async def upload_project_file(
             entity_type="file_version",
             entity_id=file_version.id,
             request_id=get_request_id(request),
-            payload={"job_id": str(job.id), "sha256": sha256, "size_bytes": size_bytes},
+            payload={
+                "job_id": str(job.id),
+                "sha256": sha256,
+                "size_bytes": size_bytes,
+                "invalidated_fact_ids": [str(item) for item in invalidated_fact_ids],
+            },
         )
         await session.commit()
         await session.refresh(project_file)
