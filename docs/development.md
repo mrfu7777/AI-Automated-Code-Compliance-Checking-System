@@ -30,7 +30,9 @@
 
 The upload limit defaults to 150 MB. Change MAX_UPLOAD_SIZE_BYTES only through local or
 deployment configuration. MINIO_ENDPOINT is the container-to-container endpoint, while
-MINIO_PUBLIC_ENDPOINT is used to generate browser-accessible download links.
+MINIO_PUBLIC_ENDPOINT is used to generate browser-accessible download links. MINIO_REGION lets
+the API sign those public URLs without trying to reach the public endpoint from inside the
+container; keep it aligned with the MinIO deployment region.
 
 The development stack creates a deterministic local organization and architect on first use.
 Supplying X-User-ID selects an existing active user and is useful for isolation testing, but it

@@ -1,16 +1,34 @@
 import asyncio
 from typing import Any
+from urllib.parse import urlparse
 
 import pytest
 
 from app.core.config import get_settings
 from app.services.job_runtime import run_persisted_job
+from app.services.storage import MinioObjectStorage
 from app.tasks.check_processing import execute_check
 
 
 def test_demo_endpoint_is_disabled_unless_explicitly_enabled(m1_environment: Any) -> None:
     client, _storage, _dispatcher, _session_factory = m1_environment
     assert client.post("/api/v1/demo/scenario").status_code == 404
+
+
+def test_public_object_url_is_signed_without_contacting_the_public_endpoint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("MINIO_ENDPOINT", "internal-storage.invalid:9000")
+    monkeypatch.setenv("MINIO_PUBLIC_ENDPOINT", "browser-storage.invalid:9000")
+    monkeypatch.setenv("MINIO_REGION", "us-east-1")
+    get_settings.cache_clear()
+    try:
+        url = MinioObjectStorage().presigned_download("evidence/page-1.png", "page-1.png")
+        parsed = urlparse(url)
+        assert parsed.netloc == "browser-storage.invalid:9000"
+        assert "X-Amz-Signature" in parsed.query
+    finally:
+        get_settings.cache_clear()
 
 
 def test_synthetic_demo_runs_through_the_existing_review_chain(

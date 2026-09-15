@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     minio_access_key: str = "code-compliance"
     minio_secret_key: str = "change-me-minio-password"
     minio_bucket: str = "code-compliance"
+    minio_region: str = "us-east-1"
     minio_secure: bool = False
     max_upload_size_bytes: int = 157_286_400
     default_organization_id: str = "00000000-0000-0000-0000-000000000001"

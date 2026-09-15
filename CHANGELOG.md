@@ -6,6 +6,7 @@
 - Added deterministic full-stack demonstration verification to CI.
 - Added a release manifest tying application, source, image, schema, and processor versions together.
 - Fixed production images so API migrations ship with the image and the web API path is deployable.
+- Fixed public MinIO evidence-link signing for containerized API deployments.
 - Added tag-triggered API and web container publication.
 - Completed M8 demonstration, release, and continuous-delivery documentation.
 

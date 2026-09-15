@@ -45,12 +45,14 @@ class MinioObjectStorage:
             access_key=settings.minio_access_key,
             secret_key=settings.minio_secret_key,
             secure=settings.minio_secure,
+            region=settings.minio_region,
         )
         self.download_client = Minio(
             settings.minio_public_endpoint,
             access_key=settings.minio_access_key,
             secret_key=settings.minio_secret_key,
             secure=settings.minio_secure,
+            region=settings.minio_region,
         )
 
     def _ensure_bucket(self) -> None:
