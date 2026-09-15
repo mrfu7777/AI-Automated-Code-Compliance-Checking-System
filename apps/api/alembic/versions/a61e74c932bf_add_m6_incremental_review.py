@@ -20,7 +20,12 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     op.add_column(
         "rule_packs",
-        sa.Column("authority_level", sa.String(length=32), server_default="national", nullable=False),
+        sa.Column(
+            "authority_level",
+            sa.String(length=32),
+            server_default="national",
+            nullable=False,
+        ),
     )
     op.add_column(
         "review_packages",
@@ -31,7 +36,10 @@ def upgrade() -> None:
         sa.Column("conflict_resolutions", sa.JSON(), server_default="{}", nullable=False),
     )
     op.add_column(
-        "check_runs", sa.Column("run_mode", sa.String(length=32), server_default="full", nullable=False)
+        "check_runs",
+        sa.Column(
+            "run_mode", sa.String(length=32), server_default="full", nullable=False
+        ),
     )
     op.add_column("check_runs", sa.Column("baseline_run_id", sa.Uuid(), nullable=True))
     op.add_column(
