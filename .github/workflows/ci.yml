@@ -64,6 +64,7 @@ jobs:
           sed --in-place 's/^RELEASE_IMAGE=.*/RELEASE_IMAGE=source-build/' .env
           echo "RELEASE_REVISION=${GITHUB_SHA}" >> "$GITHUB_ENV"
           echo "RELEASE_IMAGE=source-build" >> "$GITHUB_ENV"
+          echo "DEMO_MODE_ENABLED=true" >> "$GITHUB_ENV"
       - name: Validate Docker Compose
         run: |
           docker compose -f infra/docker-compose.yml config --quiet
