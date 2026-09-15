@@ -320,7 +320,7 @@ The supported development environment uses Docker.
 
 ~~~shell
 cp .env.example .env
-docker compose -f infra/docker-compose.yml up --build
+docker compose --env-file .env -f infra/docker-compose.yml up --build
 ~~~
 
 Replace every placeholder password in .env before using the stack outside an isolated local development machine.

@@ -15,7 +15,7 @@ function jsonResponse(payload: unknown, status = 200) {
   });
 }
 
-test("renders the V1 workspace and confirms API connectivity", async () => {
+test("renders the Chinese architect workspace and confirms API connectivity", async () => {
   vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
     const url = String(input);
     if (url.endsWith("/health")) {
@@ -30,13 +30,13 @@ test("renders the V1 workspace and confirms API connectivity", async () => {
 
   expect(
     screen.getByRole("heading", {
-      name: /start with a complete scenario, then inspect every conclusion/i,
+      name: "上传建筑资料，快速发现消防合规问题",
     }),
   ).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: /create project/i })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "创建项目" })).toBeDisabled();
 
   await waitFor(() => {
-    expect(screen.getByText("API connected")).toBeInTheDocument();
+    expect(screen.getByText("服务正常")).toBeInTheDocument();
   });
 });
 
@@ -88,14 +88,14 @@ test("loads the guided demo into the existing project and rule workflow", async 
   });
 
   render(<App />);
-  const demoButton = await screen.findByRole("button", { name: /load guided v1 demo/i });
+  const demoButton = await screen.findByRole("button", { name: "加载演示项目" });
   fireEvent.click(demoButton);
 
   await waitFor(() => {
-    expect(screen.getAllByText(project.name).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("【演示】既有办公楼改造项目").length).toBeGreaterThan(0);
   });
-  expect(screen.getByText("Run the existing compliance check.")).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: /run compliance check/i })).toBeEnabled();
+  expect(screen.getByText("下一步请点击下方“开始消防合规审查”。")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "开始消防合规审查" })).toBeEnabled();
 });
 
 test("creates and selects a project through the real client contract", async () => {
@@ -124,18 +124,18 @@ test("creates and selects a project through the real client contract", async () 
   });
 
   render(<App />);
-  fireEvent.change(screen.getByLabelText("Project name"), {
+  fireEvent.change(screen.getByLabelText("项目名称"), {
     target: { value: "Warehouse Renovation" },
   });
-  fireEvent.change(screen.getByLabelText("Jurisdiction"), {
+  fireEvent.change(screen.getByLabelText("适用地区"), {
     target: { value: "Berlin" },
   });
-  fireEvent.click(screen.getByRole("button", { name: /create project/i }));
+  fireEvent.click(screen.getByRole("button", { name: "创建项目" }));
 
   await waitFor(() => {
-    expect(screen.getAllByText("Warehouse Renovation")).toHaveLength(2);
+    expect(screen.getAllByText("Warehouse Renovation")).toHaveLength(3);
   });
-  expect(screen.getByText("No files uploaded yet.")).toBeInTheDocument();
+  expect(screen.getByText("该项目尚未上传资料。")).toBeInTheDocument();
 });
 
 test("verifies an extracted candidate before exposing it as a project fact", async () => {
@@ -194,10 +194,10 @@ test("verifies an extracted candidate before exposing it as a project fact", asy
 
   render(<App />);
 
-  const verifyButton = await screen.findByRole("button", { name: "Verify" });
+  const verifyButton = await screen.findByRole("button", { name: "确认" });
   fireEvent.click(verifyButton);
   await waitFor(() => {
-    expect(screen.getByText(/120 cm · verified/i)).toBeInTheDocument();
+    expect(screen.getByText(/120 cm · 已确认/i)).toBeInTheDocument();
   });
   expect(fetchSpy).toHaveBeenCalledWith(
     expect.stringContaining(`/fact-candidates/${candidate.id}/verify`),

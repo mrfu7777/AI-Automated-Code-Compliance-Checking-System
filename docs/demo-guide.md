@@ -13,7 +13,7 @@ quotation or interpretation of GB 55037-2022 or any other enforceable regulation
 
 ~~~shell
 cp .env.example .env
-docker compose -f infra/docker-compose.yml up --build
+docker compose --env-file .env -f infra/docker-compose.yml up --build
 ~~~
 
 On Windows PowerShell, use `Copy-Item .env.example .env` for the first command. Docker Desktop must

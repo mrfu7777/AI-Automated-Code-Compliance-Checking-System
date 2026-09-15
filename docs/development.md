@@ -19,7 +19,7 @@
 3. Start the services:
 
    ~~~shell
-   docker compose -f infra/docker-compose.yml up --build
+   docker compose --env-file .env -f infra/docker-compose.yml up --build
    ~~~
 
 4. Open:

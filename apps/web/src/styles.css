@@ -2,7 +2,7 @@
   color: #eef4ed;
   background: #08110e;
   font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Microsoft YaHei", "PingFang SC", Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -55,7 +55,7 @@ a {
   place-items: center;
   border: 1px solid #8cc3a0;
   color: #b8e2c5;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   letter-spacing: 0.08em;
 }
 
@@ -122,11 +122,11 @@ h1 {
   max-width: 850px;
   margin: 0;
   color: #f4f7f3;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: "Microsoft YaHei", "PingFang SC", ui-sans-serif, system-ui, sans-serif;
   font-size: clamp(3.2rem, 7vw, 6.6rem);
   font-weight: 400;
-  letter-spacing: -0.055em;
-  line-height: 0.96;
+  letter-spacing: -0.045em;
+  line-height: 1.08;
 }
 
 .hero-copy {
@@ -240,10 +240,162 @@ textarea {
 h2 {
   margin: 0;
   color: #eaf1e9;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: "Microsoft YaHei", "PingFang SC", ui-sans-serif, system-ui, sans-serif;
   font-size: 2.3rem;
   font-weight: 400;
   line-height: 1.13;
+}
+
+.architect-flow {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0 0 28px;
+}
+
+.architect-flow > div {
+  display: grid;
+  gap: 7px;
+  min-height: 128px;
+  padding: 18px;
+  border: 1px solid rgba(217, 231, 221, 0.14);
+  background: rgba(13, 27, 21, 0.68);
+}
+
+.architect-flow strong {
+  color: #75d697;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+}
+
+.architect-flow span {
+  align-self: end;
+  color: #eef4ed;
+  font-weight: 700;
+}
+
+.architect-flow small {
+  color: #8fa097;
+  line-height: 1.5;
+}
+
+.primary-action {
+  min-height: 48px;
+  padding: 12px 22px;
+  border-radius: 3px;
+}
+
+.review-console {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.8fr) minmax(460px, 1.2fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.review-overview,
+.result-overview {
+  min-height: 340px;
+  padding: 26px;
+  border: 1px solid rgba(217, 231, 221, 0.14);
+  background: rgba(13, 27, 21, 0.76);
+}
+
+.review-overview > p:not(.eyebrow) {
+  color: #8fa097;
+  line-height: 1.7;
+}
+
+.review-metrics,
+.result-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 24px 0;
+}
+
+.review-metrics span,
+.result-count {
+  padding: 10px 12px;
+  border: 1px solid rgba(217, 231, 221, 0.12);
+  color: #aab9af;
+  font-size: 0.82rem;
+}
+
+.review-metrics strong,
+.result-count strong {
+  margin-right: 5px;
+  color: #eef4ed;
+  font-size: 1.12rem;
+}
+
+.result-count--ok { border-color: rgba(117, 214, 151, 0.55); }
+.result-count--bad { border-color: rgba(231, 119, 104, 0.65); }
+.result-count--warn { border-color: rgba(233, 185, 73, 0.65); }
+
+.review-progress {
+  margin-top: 20px;
+  color: #aab9af;
+  font-size: 0.85rem;
+}
+
+.simple-findings {
+  display: grid;
+  gap: 8px;
+}
+
+.simple-finding {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  padding: 12px;
+  border-color: rgba(217, 231, 221, 0.12);
+  background: rgba(7, 17, 13, 0.55);
+  color: #eef4ed;
+  text-align: left;
+}
+
+.simple-finding.is-selected { border-color: #8cc3a0; }
+.simple-finding > span:last-child { display: grid; gap: 4px; }
+.simple-finding small { color: #91a399; font-weight: 400; line-height: 1.45; }
+
+.finding-index {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 50%;
+  background: #52635a;
+}
+
+.finding-index--compliant { background: #237947; }
+.finding-index--non_compliant { background: #a94438; }
+.finding-index--insufficient_information { background: #9a6e18; }
+
+.evidence-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.evidence-summary > div {
+  padding: 24px;
+  border: 1px solid rgba(217, 231, 221, 0.14);
+  background: rgba(13, 27, 21, 0.68);
+}
+
+.advanced-workspace {
+  margin: 42px 0 90px;
+  border-top: 1px solid rgba(217, 231, 221, 0.14);
+}
+
+.advanced-workspace > summary {
+  padding: 22px 0;
+  color: #b8e2c5;
+  cursor: pointer;
+  font-weight: 700;
 }
 
 .foundation-grid {
@@ -724,6 +876,12 @@ button:disabled {
   }
 
   .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .architect-flow,
+  .review-console,
+  .evidence-summary {
     grid-template-columns: 1fr;
   }
 
