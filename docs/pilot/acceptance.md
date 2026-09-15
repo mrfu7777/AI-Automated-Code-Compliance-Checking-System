@@ -28,7 +28,8 @@ from synthetic data alone.
 
 ## Release decision
 
-V1.0 may proceed only when all critical/high discrepancies are resolved or explicitly rejected by a
-qualified owner, the full backup/evidence restore passes, and the architect confirms useful value.
+Production V1 use with a real project may proceed only when all critical/high discrepancies are
+resolved or explicitly rejected by a qualified owner, the full backup/evidence restore passes, and
+the architect confirms useful value. The synthetic V1 demonstration does not satisfy this gate.
 After M7, V1.0 is a hardening release: blocker fixes and validated rule/data expansion only, with no
 parallel rewrite of the M1–M7 project, evidence, rules, snapshots, jobs, or review workflow.

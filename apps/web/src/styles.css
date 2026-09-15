@@ -146,6 +146,37 @@ h1 {
   max-width: 760px;
 }
 
+.release-badge {
+  background: #e8f5ee;
+  border: 1px solid #9bcdb1;
+  border-radius: 999px;
+  color: #17643b;
+  font-size: 0.78rem;
+  font-weight: 800;
+  margin-left: auto;
+  padding: 0.35rem 0.65rem;
+}
+
+.demo-guide {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(36, 52, 71, 0.18);
+  border-radius: 14px;
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 1rem;
+  max-width: 760px;
+  padding: 1rem 1.15rem;
+}
+
+.demo-guide ol {
+  margin: 0.4rem 0 0;
+  padding-left: 1.3rem;
+}
+
+.demo-guide li + li {
+  margin-top: 0.3rem;
+}
+
 .api-key-form label {
   margin: 0;
 }

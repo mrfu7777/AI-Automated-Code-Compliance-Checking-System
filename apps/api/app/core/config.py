@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     external_model_enabled: bool = False
     external_model_timeout_seconds: float = Field(default=20, gt=0, le=120)
     external_model_requests_per_minute: int = Field(default=30, ge=1, le=1000)
+    demo_mode_enabled: bool = False
+    release_revision: str = "development"
+    release_image: str = "local"
     database_url: str = (
         "postgresql+asyncpg://code_compliance:change-me@localhost:5432/code_compliance"
     )

@@ -15,7 +15,7 @@ function jsonResponse(payload: unknown, status = 200) {
   });
 }
 
-test("renders the M7 pilot workspace and confirms API connectivity", async () => {
+test("renders the V1 workspace and confirms API connectivity", async () => {
   vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
     const url = String(input);
     if (url.endsWith("/health")) {
@@ -30,7 +30,7 @@ test("renders the M7 pilot workspace and confirms API connectivity", async () =>
 
   expect(
     screen.getByRole("heading", {
-      name: /run an evidence-backed pilot without hiding uncertainty/i,
+      name: /start with a complete scenario, then inspect every conclusion/i,
     }),
   ).toBeInTheDocument();
   expect(screen.getByRole("button", { name: /create project/i })).toBeDisabled();
@@ -38,6 +38,64 @@ test("renders the M7 pilot workspace and confirms API connectivity", async () =>
   await waitFor(() => {
     expect(screen.getByText("API connected")).toBeInTheDocument();
   });
+});
+
+test("loads the guided demo into the existing project and rule workflow", async () => {
+  const project = {
+    id: "11111111-1111-1111-1111-111111111111",
+    name: "[DEMO] Existing Office Renovation",
+    code: "DEMO-V1-FIRE",
+    jurisdiction: "Synthetic training jurisdiction",
+    design_date: "2026-01-15",
+    building_type: "Existing office renovation",
+    status: "active",
+    created_at: "2026-09-15T00:00:00Z",
+    updated_at: "2026-09-15T00:00:00Z",
+  };
+  const pack = {
+    id: "22222222-2222-2222-2222-222222222222",
+    standard_version_id: "33333333-3333-3333-3333-333333333333",
+    name: "Synthetic V1 Fire Review Rules",
+    semantic_version: "1.0.0",
+    lifecycle_status: "published",
+    content_hash: "a".repeat(64),
+    authority_level: "project",
+  };
+  vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+    const url = String(input);
+    if (url.endsWith("/health")) {
+      return Promise.resolve(
+        jsonResponse({ status: "ok", service: "code-compliance-api", api_version: "v1" }),
+      );
+    }
+    if (url.endsWith("/release")) {
+      return Promise.resolve(jsonResponse({ app_version: "1.0.0", demo_mode_enabled: true }));
+    }
+    if (url.endsWith("/demo/scenario") && init?.method === "POST") {
+      return Promise.resolve(jsonResponse({
+        created: true,
+        project_id: project.id,
+        rule_pack_id: pack.id,
+        project_name: project.name,
+        rule_pack_name: pack.name,
+        expected_statuses: {},
+        next_steps: ["Run the existing compliance check."],
+      }, 201));
+    }
+    if (url.endsWith("/projects")) return Promise.resolve(jsonResponse([project]));
+    if (url.endsWith("/rule-packs")) return Promise.resolve(jsonResponse([pack]));
+    return Promise.resolve(jsonResponse([]));
+  });
+
+  render(<App />);
+  const demoButton = await screen.findByRole("button", { name: /load guided v1 demo/i });
+  fireEvent.click(demoButton);
+
+  await waitFor(() => {
+    expect(screen.getAllByText(project.name).length).toBeGreaterThan(0);
+  });
+  expect(screen.getByText("Run the existing compliance check.")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /run compliance check/i })).toBeEnabled();
 });
 
 test("creates and selects a project through the real client contract", async () => {

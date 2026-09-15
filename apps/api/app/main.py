@@ -10,6 +10,8 @@ from app.core.middleware import RequestIdMiddleware, SecurityHeadersMiddleware
 def create_application() -> FastAPI:
     settings = get_settings()
     if settings.app_env == "production":
+        if settings.demo_mode_enabled:
+            raise RuntimeError("Production requires DEMO_MODE_ENABLED=false")
         if settings.auth_mode != "api_key":
             raise RuntimeError("Production requires AUTH_MODE=api_key")
         if (
@@ -20,7 +22,7 @@ def create_application() -> FastAPI:
             raise RuntimeError("Production API key secrets must be configured")
     application = FastAPI(
         title=settings.app_name,
-        version="0.9.0",
+        version="1.0.0",
         description=(
             "Evidence-backed API foundation for automated building code compliance review."
         ),

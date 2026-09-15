@@ -3,7 +3,7 @@
   "info": {
     "title": "AI Automated Code Compliance Checking System",
     "description": "Evidence-backed API foundation for automated building code compliance review.",
-    "version": "0.9.0"
+    "version": "1.0.0"
   },
   "paths": {
     "/api/v1/projects": {
@@ -4894,6 +4894,71 @@
         }
       }
     },
+    "/api/v1/demo/scenario": {
+      "post": {
+        "tags": [
+          "demo"
+        ],
+        "summary": "Seed Demo Scenario",
+        "operationId": "seed_demo_scenario_api_v1_demo_scenario_post",
+        "parameters": [
+          {
+            "name": "X-User-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemoScenarioResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/health": {
       "get": {
         "tags": [
@@ -4929,6 +4994,27 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ReadinessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/release": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Release Manifest",
+        "operationId": "release_manifest_api_v1_release_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReleaseManifestResponse"
                 }
               }
             }
@@ -6122,6 +6208,58 @@
           "job_statuses"
         ],
         "title": "ContractSummary"
+      },
+      "DemoScenarioResponse": {
+        "properties": {
+          "created": {
+            "type": "boolean",
+            "title": "Created"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "rule_pack_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Rule Pack Id"
+          },
+          "project_name": {
+            "type": "string",
+            "title": "Project Name"
+          },
+          "rule_pack_name": {
+            "type": "string",
+            "title": "Rule Pack Name"
+          },
+          "expected_statuses": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Expected Statuses"
+          },
+          "next_steps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Next Steps"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "created",
+          "project_id",
+          "rule_pack_id",
+          "project_name",
+          "rule_pack_name",
+          "expected_statuses",
+          "next_steps"
+        ],
+        "title": "DemoScenarioResponse"
       },
       "DependencyGraphResponse": {
         "properties": {
@@ -7829,6 +7967,62 @@
           "job"
         ],
         "title": "RegulationIngestResponse"
+      },
+      "ReleaseManifestResponse": {
+        "properties": {
+          "app_version": {
+            "type": "string",
+            "const": "1.0.0",
+            "title": "App Version"
+          },
+          "source_revision": {
+            "type": "string",
+            "title": "Source Revision"
+          },
+          "image": {
+            "type": "string",
+            "title": "Image"
+          },
+          "schema_revision": {
+            "type": "string",
+            "const": "c73f20e184ad",
+            "title": "Schema Revision"
+          },
+          "rule_engine_version": {
+            "type": "string",
+            "title": "Rule Engine Version"
+          },
+          "regulation_parser_version": {
+            "type": "string",
+            "title": "Regulation Parser Version"
+          },
+          "project_extractor_version": {
+            "type": "string",
+            "title": "Project Extractor Version"
+          },
+          "drawing_extractor_version": {
+            "type": "string",
+            "title": "Drawing Extractor Version"
+          },
+          "demo_mode_enabled": {
+            "type": "boolean",
+            "title": "Demo Mode Enabled"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "app_version",
+          "source_revision",
+          "image",
+          "schema_revision",
+          "rule_engine_version",
+          "regulation_parser_version",
+          "project_extractor_version",
+          "drawing_extractor_version",
+          "demo_mode_enabled"
+        ],
+        "title": "ReleaseManifestResponse"
       },
       "RuleCreate": {
         "properties": {

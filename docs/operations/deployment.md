@@ -1,24 +1,26 @@
-# Pilot Deployment and Operations Manual
+# V1 Deployment and Operations Manual
 
 ## Supported pilot topology
 
-M7 is a single-organization release candidate for one licensed renovation project and one or two
+V1 is a single-organization first release for one licensed renovation project and one or two
 architects. The supported topology is the existing Docker Compose stack: React, FastAPI, Celery,
 PostgreSQL, Redis, and MinIO. The deterministic review path does not require an external model.
 
 ## Production configuration
 
 1. Copy `.env.example` to `.env` and replace every `change-me` value.
-2. Set `APP_ENV=production` and `AUTH_MODE=api_key`.
+2. Set `APP_ENV=production`, `AUTH_MODE=api_key`, and `DEMO_MODE_ENABLED=false`.
 3. Generate independent high-entropy values for `BOOTSTRAP_API_KEY`, `API_KEY_PEPPER`, database
    credentials, and MinIO credentials. Never commit them.
 4. Put the API and web app behind an HTTPS reverse proxy. Restrict PostgreSQL, Redis, and MinIO
    to the private deployment network.
-5. Start with `docker compose -f infra/docker-compose.yml up --build --detach`.
+5. Start the production targets with
+   `docker compose -f infra/docker-compose.yml -f infra/docker-compose.production.yml up --build --detach`.
 6. Apply migrations with `docker compose -f infra/docker-compose.yml exec api alembic upgrade head`.
 7. Verify `/api/v1/health`, `/api/v1/ready`, the web page, and a test upload/check/report flow.
 
-Production startup fails when API-key authentication or non-placeholder secrets are missing.
+Production startup fails when demo mode is active, API-key authentication is missing, or secrets are
+still placeholders.
 Enter the bootstrap key in the web pilot-key field; it is kept only in browser session storage and
 acts as the pilot administrator. Create named, expiring architect keys through
 `POST /api/v1/access/api-keys`. Rotate the bootstrap secret under the deployment's secret-management

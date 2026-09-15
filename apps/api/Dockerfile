@@ -19,6 +19,8 @@ RUN groupadd --system app && useradd --system --gid app app
 
 COPY pyproject.toml ./
 COPY app ./app
+COPY alembic.ini ./
+COPY alembic ./alembic
 RUN pip install --no-cache-dir .
 
 USER app
@@ -32,8 +34,6 @@ FROM base AS development
 
 USER root
 RUN pip install --no-cache-dir ".[dev]"
-COPY alembic.ini ./
-COPY alembic ./alembic
 COPY tests ./tests
 RUN chown -R app:app /app
 USER app

@@ -1,0 +1,24 @@
+services:
+  api:
+    build:
+      target: production
+    command: >
+      sh -c "alembic upgrade head &&
+      uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    volumes: !reset []
+
+  worker:
+    build:
+      target: production
+    volumes: !reset []
+
+  web:
+    build:
+      target: production
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api/v1}
+    command: null
+    environment: !reset {}
+    ports: !reset
+      - "5173:80"
+    volumes: !reset []

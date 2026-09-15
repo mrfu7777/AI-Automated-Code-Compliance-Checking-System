@@ -285,6 +285,28 @@ export interface PilotFeedback {
   created_at: string;
 }
 
+export interface DemoScenario {
+  created: boolean;
+  project_id: string;
+  rule_pack_id: string;
+  project_name: string;
+  rule_pack_name: string;
+  expected_statuses: Record<string, string>;
+  next_steps: string[];
+}
+
+export interface ReleaseManifest {
+  app_version: "1.0.0";
+  source_revision: string;
+  image: string;
+  schema_revision: string;
+  rule_engine_version: string;
+  regulation_parser_version: string;
+  project_extractor_version: string;
+  drawing_extractor_version: string;
+  demo_mode_enabled: boolean;
+}
+
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api/v1";
 
@@ -327,6 +349,14 @@ export function setApiKey(token: string): void {
 
 export function getHealth(signal?: AbortSignal): Promise<HealthResponse> {
   return request<HealthResponse>("/health", { signal });
+}
+
+export function getRelease(signal?: AbortSignal): Promise<ReleaseManifest> {
+  return request<ReleaseManifest>("/release", { signal });
+}
+
+export function createDemoScenario(): Promise<DemoScenario> {
+  return request<DemoScenario>("/demo/scenario", { method: "POST" });
 }
 
 export function listProjects(signal?: AbortSignal): Promise<Project[]> {

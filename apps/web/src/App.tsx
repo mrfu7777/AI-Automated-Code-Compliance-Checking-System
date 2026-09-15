@@ -2,6 +2,7 @@ import { FormEvent, MouseEvent as ReactMouseEvent, useCallback, useEffect, useSt
 
 import {
   createProject,
+  createDemoScenario,
   createCheckRun,
   createIncrementalCheckRun,
   createDrawingPath,
@@ -15,6 +16,7 @@ import {
   decideFactCandidate,
   FactCandidate,
   getHealth,
+  getRelease,
   getJob,
   getCheckRun,
   getCheckComparison,
@@ -61,6 +63,8 @@ import {
   updateFinding,
   uploadProjectFile,
   DrawingPage,
+  DemoScenario,
+  ReleaseManifest,
   Workbench,
   MissingInformation,
   setApiKey,
@@ -131,6 +135,8 @@ function App() {
   const [feedbackSummary, setFeedbackSummary] = useState("");
   const [feedbackDetails, setFeedbackDetails] = useState("");
   const [feedbackSaved, setFeedbackSaved] = useState(false);
+  const [release, setRelease] = useState<ReleaseManifest | null>(null);
+  const [demoScenario, setDemoScenario] = useState<DemoScenario | null>(null);
 
   const refreshFiles = useCallback(async (projectId: string, signal?: AbortSignal) => {
     setFiles(await listProjectFiles(projectId, signal));
@@ -144,6 +150,7 @@ function App() {
         if (requestError instanceof DOMException && requestError.name === "AbortError") return;
         setConnection("unavailable");
       });
+    void getRelease(controller.signal).then(setRelease).catch(() => undefined);
     Promise.all([
       listProjects(controller.signal),
       listRegulations(controller.signal),
@@ -666,6 +673,33 @@ function App() {
     }
   }
 
+  async function handleLoadDemo() {
+    setBusy(true);
+    setError(null);
+    try {
+      const scenario = await createDemoScenario();
+      const [availableProjects, availablePacks] = await Promise.all([
+        listProjects(),
+        listRulePacks(),
+      ]);
+      setDemoScenario(scenario);
+      setProjects(availableProjects);
+      setRulePacks(availablePacks);
+      setSelectedProjectId(scenario.project_id);
+      setSelectedPackId(scenario.rule_pack_id);
+      setReviewPackIds([scenario.rule_pack_id]);
+      setFacts(await listFacts(scenario.project_id));
+      setFiles(await listProjectFiles(scenario.project_id));
+      setCheckRun(null);
+      setWorkbench(null);
+      setMissingInformation(null);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Unable to load demo");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const selectedProject = projects.find((project) => project.id === selectedProjectId) ?? null;
   const selectedFinding = workbench?.findings.find(
     (finding) => finding.result_id === selectedFindingId,
@@ -682,15 +716,30 @@ function App() {
           <span className="connection-dot" aria-hidden="true" />
           API {connection}
         </span>
+        {release && <span className="release-badge">V{release.app_version}</span>}
       </nav>
 
       <section className="hero hero--compact">
-        <p className="eyebrow">M7 · Pilot release candidate</p>
-        <h1>Run an evidence-backed pilot without hiding uncertainty.</h1>
+        <p className="eyebrow">V1.0 · Evidence-backed fire review demonstration</p>
+        <h1>Start with a complete scenario, then inspect every conclusion.</h1>
         <p className="hero-copy">
-          Review exact code editions, collect every missing input as an action, and record
-          architect feedback before the V1.0 release decision.
+          Load a clearly labelled synthetic project into the real M1–M7 data model, run the existing
+          deterministic review job, and trace findings back to both drawing and rule evidence.
         </p>
+        {release?.demo_mode_enabled && (
+          <button disabled={busy} onClick={() => void handleLoadDemo()} type="button">
+            {busy ? "Preparing demo…" : "Load guided V1 demo"}
+          </button>
+        )}
+        {demoScenario && (
+          <div className="demo-guide" aria-label="Guided demo">
+            <strong>{demoScenario.project_name}</strong>
+            <span>{demoScenario.rule_pack_name}</span>
+            <ol>
+              {demoScenario.next_steps.map((step) => <li key={step}>{step}</li>)}
+            </ol>
+          </div>
+        )}
         <form className="api-key-form" onSubmit={handleApiKey}>
           <label>
             Pilot API key

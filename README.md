@@ -6,6 +6,16 @@ The system is designed to help architects review drawings and project documents 
 
 > This project is a professional decision-support tool. It does not replace licensed architects, statutory drawing review, fire inspection, or approval by the relevant authorities.
 
+## Fastest Demonstration
+
+Start the Docker Compose stack, open http://localhost:5173, click **Load guided V1 demo**, and then
+click **Run compliance check**. The generated scenario is synthetic and uses the real project,
+version, rule, fact, evidence, job, check, workbench, and report pipeline—there is no mock result page.
+
+The demo deterministically produces two compliant findings, one non-compliant exit-count finding,
+and one insufficient-information compartment-area finding. See the
+[guided demonstration](docs/demo-guide.md) for the exact flow and safety boundary.
+
 ## The Problem
 
 Fire safety review is difficult to automate because:
@@ -268,8 +278,10 @@ The most important safety metric is not overall accuracy. It is the number of kn
   dependency impact analysis, incremental rechecks, and baseline comparison completed
 - M7 pilot release candidate hardening completed: API-key access, roles, security headers, readiness,
   missing-information actions, feedback triage, operations counters, resilience, and recovery proof
+- M8 demonstration-ready V1.0 completed: idempotent synthetic scenario, release manifest, full-stack
+  smoke path, deployable production images, tagged container publishing, and release documentation
 
-## M7 Pilot Quick Start
+## V1 Real-Project Pilot Gate
 
 1. Configure production API-key authentication and HTTPS using the deployment manual.
 2. Complete the security checklist and a PostgreSQL-plus-MinIO restore drill before loading pilot data.
@@ -279,9 +291,10 @@ The most important safety metric is not overall accuracy. It is the number of kn
 5. Record architect discrepancies and value observations through the pilot feedback form.
 6. Complete the acceptance record before considering V1.0. Synthetic tests are not pilot sign-off.
 
-The M7 release candidate is `0.9.0`. See [the M7 release notes](docs/releases/m7.md),
+The engineering release is `1.0.0`. See [the M8 release notes](docs/releases/m8.md),
 [pilot user manual](docs/pilot/user-manual.md), [acceptance record](docs/pilot/acceptance.md), and
-[deployment manual](docs/operations/deployment.md).
+[deployment manual](docs/operations/deployment.md). Real architect acceptance remains pending and is
+not replaced by the synthetic demonstration.
 - Backend and frontend quality gates running in GitHub Actions
 - M1 project creation and tenant-scoped project access completed
 - Streaming PDF, DOCX, XLSX, and IFC upload with a configurable 150 MB limit completed
@@ -458,6 +471,9 @@ M4 adds these API groups:
 - [M5 release record](docs/releases/m5.md)
 - [M6 release record](docs/releases/m6.md)
 - [M7 release candidate](docs/releases/m7.md)
+- [M8 demonstration-ready V1.0](docs/releases/m8.md)
+- [Guided V1 demonstration](docs/demo-guide.md)
+- [Release process](docs/releases/release-process.md)
 - [M7 security checklist](docs/operations/security-checklist.md)
 - [M7 backup and restore drill](docs/operations/backup-restore-drill.md)
 - [M7 known limitations](docs/pilot/known-limitations.md)

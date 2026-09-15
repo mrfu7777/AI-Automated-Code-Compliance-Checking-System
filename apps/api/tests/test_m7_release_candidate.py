@@ -36,6 +36,11 @@ def test_security_headers_and_production_configuration_guard(
     get_settings.cache_clear()
     with pytest.raises(RuntimeError, match="AUTH_MODE"):
         create_application()
+    monkeypatch.setenv("DEMO_MODE_ENABLED", "true")
+    get_settings.cache_clear()
+    with pytest.raises(RuntimeError, match="DEMO_MODE_ENABLED"):
+        create_application()
+    monkeypatch.setenv("DEMO_MODE_ENABLED", "false")
     monkeypatch.setenv("AUTH_MODE", "api_key")
     monkeypatch.setenv("BOOTSTRAP_API_KEY", "too-short")
     monkeypatch.setenv("API_KEY_PEPPER", "too-short")
